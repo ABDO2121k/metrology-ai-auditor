@@ -1,0 +1,95 @@
+version: '3.8'
+
+networks:
+  metrology-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+services:
+  # ==========================================
+  # 1. DATABASE & CACHE & STORAGE INFRASTRUCTURE
+  # ==========================================
+
+  # PostgreSQL 16 Relational Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: metrology_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: metrology_db
+      POSTGRES_USER: metrology_admin
+      POSTGRES_PASSWORD: SecretPassword123!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - metrology-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metrology_admin -d metrology_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis 7 Cache & Message Bus
+  redis:
+    image: redis:7-alpine
+    container_name: metrology_redis
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning --requirepass RedisSecret123!
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - metrology-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "RedisSecret123!", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MinIO Object Storage (Primary Storage for PDFs & Reports)
+  minio:
+    image: minio/minio:latest
+    container_name: metrology_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio_admin
+      MINIO_ROOT_PASSWORD: MinioSecretPassword123!
+    ports:
+      - "9000:9000"   # S3 API Port
+      - "9001:9001"   # Web Console Port
+    volumes:
+      - minio_data:/data
+    networks:
+      - metrology-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MinIO Bucket Auto-Initializer
+  createbuckets:
+    image: minio/mc:latest
+    container_name: metrology_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minio_admin MinioSecretPassword123!;
+      /usr/bin/mc mb myminio/metrology-certificates --ignore-existing;
+      /usr/bin/mc mb myminio/audit-reports --ignore-existing;
+      /usr/bin/mc anonymous set download myminio/metrology-certificates;
+      exit 0;
+      "
+    networks:
+      - metrology-net
