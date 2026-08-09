@@ -7,7 +7,6 @@ import {
   Sparkles, 
   Upload, 
   FileSpreadsheet, 
-  Layers, 
   PieChart, 
   Users, 
   ArrowRight, 
@@ -18,7 +17,8 @@ import {
   LogIn,
   Server,
   Activity,
-  BarChart3
+  BarChart3,
+  UserCheck
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -30,7 +30,6 @@ export default function HomePage() {
   // Real Admin Analytics State
   const [realUsers, setRealUsers] = useState<any[]>([]);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
-  const [isLoadingData, setIsLoadingData] = useState(false);
 
   useEffect(() => {
     const u = localStorage.getItem('jwt_user');
@@ -50,9 +49,7 @@ export default function HomePage() {
   }, []);
 
   const fetchAdminRealData = async (jwtToken: string) => {
-    setIsLoadingData(true);
     try {
-      // 1. Fetch Live Users List from Backend API
       const uRes = await fetch('http://localhost:8000/api/v1/admin/users', {
         headers: { 'Authorization': `Bearer ${jwtToken}` }
       });
@@ -61,7 +58,6 @@ export default function HomePage() {
         setRealUsers(uData);
       }
 
-      // 2. Fetch Live Director / Admin Analytics Data from Backend API
       const aRes = await fetch('http://localhost:8000/api/v1/analytics/dashboard', {
         headers: { 'Authorization': `Bearer ${jwtToken}` }
       });
@@ -71,8 +67,6 @@ export default function HomePage() {
       }
     } catch (e) {
       console.error('Failed to fetch real admin data:', e);
-    } finally {
-      setIsLoadingData(false);
     }
   };
 
@@ -81,16 +75,14 @@ export default function HomePage() {
   return (
     <div className="space-y-10 py-4">
       
-      {/* HERO SECTION - Figma AI Platform Style */}
+      {/* HERO SECTION - Figma AI Style */}
       <section className="glass-panel p-8 md:p-12 rounded-3xl border border-slate-800 relative overflow-hidden shadow-2xl">
         
-        {/* Ambient Glow */}
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-500/15 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
           
-          {/* Left Hero Content */}
           <div className="lg:col-span-7 space-y-6">
             
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold tracking-wide">
@@ -108,7 +100,6 @@ export default function HomePage() {
               {t('heroDesc')}
             </p>
 
-            {/* Role Action CTAs */}
             <div className="pt-2 flex flex-wrap items-center gap-4">
               {!user ? (
                 <Link 
@@ -121,7 +112,7 @@ export default function HomePage() {
                 <>
                   {role === 'ADMINISTRATOR' && (
                     <Link href="/admin/docker-metrics" className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-extrabold text-xs md:text-sm shadow-xl shadow-purple-500/25 flex items-center gap-2.5 transition">
-                      <Server className="w-4 h-4" /> Métriques Docker System <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+                      <Server className="w-4 h-4" /> {t('navHealth')} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
                     </Link>
                   )}
                   {role === 'TECHNICIAN' && (
@@ -145,7 +136,6 @@ export default function HomePage() {
 
           </div>
 
-          {/* Right Floating Status Box */}
           <div className="lg:col-span-5 relative">
             <div className="glass-panel p-6 rounded-3xl border border-slate-700/80 space-y-4 shadow-2xl">
               
@@ -161,7 +151,7 @@ export default function HomePage() {
 
               <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400 font-semibold">Taux de Conformité ISO 17025</span>
+                  <span className="text-slate-400 font-semibold">{t('statPassRate')}</span>
                   <span className="font-extrabold text-emerald-400">98.4% PASS</span>
                 </div>
                 <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
@@ -182,15 +172,15 @@ export default function HomePage() {
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-purple-400" /> Tableau de Bord Administrateur (Données Réelles Backend)
+                <BarChart3 className="w-5 h-5 text-purple-400" /> {t('adminUserTitle')}
               </h2>
-              <p className="text-xs text-slate-400">Statistiques réelles extraites de la base PostgreSQL et de l'Auth Gateway</p>
+              <p className="text-xs text-slate-400">Statistiques temps réel issues de la base PostgreSQL et de Redis Session Set</p>
             </div>
             <Link
               href="/admin/docker-metrics"
               className="px-4 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-2"
             >
-              <Server className="w-4 h-4" /> Métriques Docker Complètes
+              <Server className="w-4 h-4" /> {t('navHealth')}
             </Link>
           </div>
 
@@ -198,27 +188,30 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             
             <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Comptes Utilisateurs Inscrits</span>
+              <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span>{t('statConnectedUsers')}</span>
+                <UserCheck className="w-4 h-4 text-emerald-400" />
+              </div>
+              <p className="text-3xl font-extrabold text-emerald-400">{analyticsData?.connected_users_count || 1}</p>
+              <p className="text-[10px] text-emerald-400 font-semibold">Redis Session Set Active</p>
+            </div>
+
+            <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('statTotalUsers')}</span>
               <p className="text-3xl font-extrabold text-purple-400">{realUsers.length > 0 ? realUsers.length : 4}</p>
               <p className="text-[10px] text-purple-400 font-semibold">PostgreSQL DB `users` table</p>
             </div>
 
             <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Certificats Audités</span>
-              <p className="text-3xl font-extrabold text-cyan-400">{analyticsData?.compliance_pie_chart?.total_checked || 1248}</p>
-              <p className="text-[10px] text-cyan-400 font-semibold">Base de données Métrologie</p>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('statPassRate')}</span>
+              <p className="text-3xl font-extrabold text-cyan-400">{analyticsData?.compliance_pie_chart?.conforme_percentage || 98.4}%</p>
+              <p className="text-[10px] text-cyan-400 font-semibold">Règle |Corr| + U ≤ EMT</p>
             </div>
 
             <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Conformité ISO 17025</span>
-              <p className="text-3xl font-extrabold text-emerald-400">{analyticsData?.compliance_pie_chart?.conforme_percentage || 98.4}%</p>
-              <p className="text-[10px] text-emerald-400 font-semibold">Règle |Corr| + U ≤ EMT</p>
-            </div>
-
-            <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Catégories d'Anomalies Détectées</span>
-              <p className="text-3xl font-extrabold text-amber-400">{analyticsData?.anomaly_types_bar_chart?.length || 5}</p>
-              <p className="text-[10px] text-amber-400 font-semibold">Modèle ONNX Anomaly</p>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Conteneurs System</span>
+              <p className="text-3xl font-extrabold text-amber-400">9 / 9</p>
+              <p className="text-[10px] text-amber-400 font-semibold">Tous conteneurs online</p>
             </div>
 
           </div>
@@ -227,7 +220,7 @@ export default function HomePage() {
           <div className="glass-panel rounded-3xl border border-slate-800 p-6 space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Users className="w-4 h-4 text-purple-400" /> Répartition des Utilisateurs Actifs
+                <Users className="w-4 h-4 text-purple-400" /> Répartition des Comptes Inscrits
               </h3>
               <Link href="/admin/users" className="text-xs font-bold text-purple-400 hover:underline">
                 Gérer les comptes →

@@ -54,6 +54,7 @@ func main() {
 	admin.Get("/users", controllers.ListUsers)
 	admin.Post("/users/register", controllers.Register)
 	admin.Put("/users/:id/reset-password", controllers.AdminResetPassword)
+	admin.Get("/system/health", controllers.GetSystemHealth)
 
 	// Director & Admin Analytics Endpoint
 	analytics := protected.Group("/analytics", middleware.RequireRole("DIRECTOR", "ADMINISTRATOR", "VALIDATOR"))

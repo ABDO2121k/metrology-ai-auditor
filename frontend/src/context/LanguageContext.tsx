@@ -28,7 +28,7 @@ const translations: Record<Language, Record<string, string>> = {
     navDirector: "Dashboard Directeur",
     navReports: "Archive Rapports PDF",
     navUsers: "Gestion Utilisateurs",
-    navHealth: "Santé Microservices",
+    navHealth: "Métriques Docker",
     
     // Landing Page
     heroBadge: "DÉPARTEMENT ÉLECTRIQUE · PLATFORME AI & MÉTROLOGIE",
@@ -39,11 +39,13 @@ const translations: Record<Language, Record<string, string>> = {
     ctaLogin: "Se Connecter Maintenant",
     ctaDashboard: "Ouvrir mon Dashboard",
     
-    // Stats
+    // Stats & Admin Metrics
     statCerts: "Certificats Traités",
     statAccuracy: "Précision Audit",
     statPassRate: "Taux Conformité",
     statSpeed: "Temps Ingestion",
+    statConnectedUsers: "Utilisateurs Connectés Temps Réel",
+    statTotalUsers: "Comptes Utilisateurs Inscrits",
     
     // Features
     featOcrTitle: "Extraction OCR & Sceaux",
@@ -54,6 +56,24 @@ const translations: Record<Language, Record<string, string>> = {
     featAiDesc: "Scoring de risque IA (0% à 100%) et détection des sceaux manquants, signatures absentes et falsifications.",
     featReportTitle: "Rapports Audit MinIO",
     featReportDesc: "Génération automatique des procès-verbaux d'audit certifiés PDF et archivage S3 sécurisé.",
+    
+    // Admin & User Management
+    adminUserTitle: "Gestion des Utilisateurs & Mots de Passe",
+    adminUserSub: "Provisionnement des comptes et override administrateur",
+    btnNewUser: "Nouveau Compte",
+    tableUser: "Utilisateur",
+    tableEmail: "Email",
+    tableRole: "Rôle",
+    tableStatus: "Statut",
+    tableActions: "Actions Admin",
+    btnOverridePass: "Override Admin Mot de Passe",
+    statusActive: "Actif",
+    
+    // Docker Metrics
+    dockerTitle: "Métriques Docker & Microservices System",
+    dockerSub: "Surveillance temps réel des 9 conteneurs Docker de la plateforme",
+    dockerHealthyCount: "Conteneurs Opérationnels",
+    btnRefresh: "Actualiser",
     
     // Role Badges & Welcomes
     welcomeUser: "Bienvenue",
@@ -77,7 +97,7 @@ const translations: Record<Language, Record<string, string>> = {
     navDirector: "Director Dashboard",
     navReports: "PDF Audit Archive",
     navUsers: "User Management",
-    navHealth: "Microservices Health",
+    navHealth: "Docker Metrics",
     
     // Landing Page
     heroBadge: "ELECTRICAL DEPT · AI & METROLOGY PLATFORM",
@@ -88,11 +108,13 @@ const translations: Record<Language, Record<string, string>> = {
     ctaLogin: "Sign In Now",
     ctaDashboard: "Go to Dashboard",
     
-    // Stats
+    // Stats & Admin Metrics
     statCerts: "Certificates Processed",
     statAccuracy: "Audit Accuracy",
     statPassRate: "Compliance Pass Rate",
     statSpeed: "Ingestion Latency",
+    statConnectedUsers: "Real-Time Connected Users",
+    statTotalUsers: "Registered User Accounts",
     
     // Features
     featOcrTitle: "OCR & Seals Extraction",
@@ -103,6 +125,24 @@ const translations: Record<Language, Record<string, string>> = {
     featAiDesc: "AI risk score (0% to 100%) flagging missing signatures, missing stamps, and data falsifications.",
     featReportTitle: "MinIO PDF Reports",
     featReportDesc: "Automatic generation of certified PDF audit reports stored in secure MinIO S3 buckets.",
+    
+    // Admin & User Management
+    adminUserTitle: "User & Password Management",
+    adminUserSub: "Account provisioning and administrator force overrides",
+    btnNewUser: "New Account",
+    tableUser: "User",
+    tableEmail: "Email",
+    tableRole: "Role",
+    tableStatus: "Status",
+    tableActions: "Admin Actions",
+    btnOverridePass: "Admin Override Password",
+    statusActive: "Active",
+    
+    // Docker Metrics
+    dockerTitle: "Docker Metrics & Microservices System",
+    dockerSub: "Real-time monitoring of all 9 Docker platform containers",
+    dockerHealthyCount: "Healthy Containers",
+    btnRefresh: "Refresh",
     
     // Role Badges & Welcomes
     welcomeUser: "Welcome",
@@ -126,7 +166,7 @@ const translations: Record<Language, Record<string, string>> = {
     navDirector: "لوحة تحكم المدير",
     navReports: "أرشيف تقارير PDF",
     navUsers: "إدارة المستخدمين",
-    navHealth: "صحة الخدمات المصغرة",
+    navHealth: "مقاييس دوكر",
     
     // Landing Page
     heroBadge: "قسم الكهرباء · منصة الذكاء الاصطناعي والمترولوجيا",
@@ -137,11 +177,13 @@ const translations: Record<Language, Record<string, string>> = {
     ctaLogin: "تسجيل الدخول الآن",
     ctaDashboard: "فتح لوحة التحكم",
     
-    // Stats
+    // Stats & Admin Metrics
     statCerts: "شهادة معالجة",
     statAccuracy: "دقة التدقيق",
     statPassRate: "نسبة المطابقة",
     statSpeed: "سرعة المعالجة",
+    statConnectedUsers: "المستخدمون المتصلون حالياً",
+    statTotalUsers: "حسابات المستخدمين المسجلة",
     
     // Features
     featOcrTitle: "استخراج OCR والأختام",
@@ -152,6 +194,24 @@ const translations: Record<Language, Record<string, string>> = {
     featAiDesc: "مؤشر المخاطر الذكي (0% إلى 100%) وكشف التواقيع والأختام المفقودة والتزوير.",
     featReportTitle: "تقارير تدقيق MinIO",
     featReportDesc: "إنشاء تقارير التدقيق المعتمدة بصيغة PDF وتخزينها بأمان في حاويات MinIO S3.",
+    
+    // Admin & User Management
+    adminUserTitle: "إدارة المستخدمين وكلمات المرور",
+    adminUserSub: "تهيئة الحسابات وتجاوز كلمة المرور من المسؤول",
+    btnNewUser: "حساب جديد",
+    tableUser: "المستخدم",
+    tableEmail: "البريد الإلكتروني",
+    tableRole: "الدور",
+    tableStatus: "الحالة",
+    tableActions: "إجراءات المسؤول",
+    btnOverridePass: "تجاوز كلمة المرور من المسؤول",
+    statusActive: "نشط",
+    
+    // Docker Metrics
+    dockerTitle: "مقاييس دوكر وصحة الحاويات",
+    dockerSub: "المراقبة المباشرة لجميع حاويات النظام الـ 9",
+    dockerHealthyCount: "الحاويات النشطة",
+    btnRefresh: "تحديث",
     
     // Role Badges & Welcomes
     welcomeUser: "مرحباً بك",

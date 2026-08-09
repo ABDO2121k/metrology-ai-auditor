@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Users, UserPlus, KeyRound, CheckCircle2, AlertCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 import PasswordInput from '@/components/PasswordInput';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function AdminUsersPage() {
+  const { t } = useLanguage();
   const [users, setUsers] = useState<any[]>([]);
   const [token, setToken] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
@@ -116,8 +118,8 @@ export default function AdminUsersPage() {
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-white">Gestion des Utilisateurs & Mots de Passe</h1>
-            <p className="text-xs text-slate-400">Provisionnement des comptes et override administrateur</p>
+            <h1 className="text-xl font-extrabold text-white">{t('adminUserTitle')}</h1>
+            <p className="text-xs text-slate-400">{t('adminUserSub')}</p>
           </div>
         </div>
 
@@ -125,7 +127,7 @@ export default function AdminUsersPage() {
           onClick={() => setIsRegisterOpen(true)}
           className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-500/20 flex items-center gap-2"
         >
-          <UserPlus className="w-4 h-4" /> Nouveau Compte
+          <UserPlus className="w-4 h-4" /> {t('btnNewUser')}
         </button>
       </div>
 
@@ -141,7 +143,7 @@ export default function AdminUsersPage() {
       {/* Users Table */}
       <div className="glass-panel rounded-3xl border border-slate-800 overflow-hidden">
         <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-          <span className="text-xs font-bold text-slate-300">Liste des Comptes Provisionnés</span>
+          <span className="text-xs font-bold text-slate-300">{t('adminUserTitle')}</span>
           <button onClick={() => fetchUsers(token)} className="text-slate-400 hover:text-white p-1">
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -151,11 +153,11 @@ export default function AdminUsersPage() {
           <table className="w-full text-left rtl:text-right text-xs">
             <thead className="bg-slate-950/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
               <tr>
-                <th className="p-4">Utilisateur</th>
-                <th className="p-4">Email</th>
-                <th className="p-4">Rôle</th>
-                <th className="p-4">Statut</th>
-                <th className="p-4 text-right rtl:text-left">Actions Admin</th>
+                <th className="p-4">{t('tableUser')}</th>
+                <th className="p-4">{t('tableEmail')}</th>
+                <th className="p-4">{t('tableRole')}</th>
+                <th className="p-4">{t('tableStatus')}</th>
+                <th className="p-4 text-right rtl:text-left">{t('tableActions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
@@ -178,7 +180,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="p-4">
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Actif
+                      {t('statusActive')}
                     </span>
                   </td>
                   <td className="p-4 text-right rtl:text-left">
@@ -189,7 +191,7 @@ export default function AdminUsersPage() {
                       }}
                       className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-semibold flex items-center gap-1.5 ml-auto rtl:mr-auto rtl:ml-0"
                     >
-                      <KeyRound className="w-3.5 h-3.5" /> Override Admin Mot de Passe
+                      <KeyRound className="w-3.5 h-3.5" /> {t('btnOverridePass')}
                     </button>
                   </td>
                 </tr>
@@ -203,10 +205,10 @@ export default function AdminUsersPage() {
       {isRegisterOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
           <div className="glass-panel rounded-3xl p-6 max-w-md w-full border border-slate-800 space-y-4 shadow-2xl">
-            <h2 className="text-sm font-bold text-white border-b border-slate-800 pb-2">Créer un Nouvel Utilisateur</h2>
+            <h2 className="text-sm font-bold text-white border-b border-slate-800 pb-2">{t('btnNewUser')}</h2>
             <form onSubmit={handleCreateUser} className="space-y-3 text-xs">
               <div>
-                <label className="text-slate-400">Nom d'utilisateur</label>
+                <label className="text-slate-400">{t('tableUser')}</label>
                 <input
                   type="text"
                   required
@@ -226,7 +228,7 @@ export default function AdminUsersPage() {
                 />
               </div>
               <div>
-                <label className="text-slate-400">Email</label>
+                <label className="text-slate-400">{t('tableEmail')}</label>
                 <input
                   type="email"
                   required
@@ -243,7 +245,7 @@ export default function AdminUsersPage() {
                 />
               </div>
               <div>
-                <label className="text-slate-400">Rôle Opérationnel</label>
+                <label className="text-slate-400">{t('tableRole')}</label>
                 <select
                   value={regForm.role}
                   onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
@@ -270,7 +272,7 @@ export default function AdminUsersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
           <div className="glass-panel rounded-3xl p-6 max-w-md w-full border border-slate-800 space-y-4 shadow-2xl">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-2 text-amber-400 font-bold text-sm">
-              <ShieldAlert className="w-5 h-5" /> Override Admin Mot de Passe
+              <ShieldAlert className="w-5 h-5" /> {t('btnOverridePass')}
             </div>
             <p className="text-xs text-slate-300">Réinitialiser le mot de passe pour <span className="font-bold text-white">{targetUser.full_name}</span> (@{targetUser.username}):</p>
             <form onSubmit={handleAdminResetPassword} className="space-y-3 text-xs">

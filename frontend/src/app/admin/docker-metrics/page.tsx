@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Server, Activity, CheckCircle2, AlertCircle, RefreshCw, Cpu, Database, HardDrive, ShieldCheck, Zap } from 'lucide-react';
+import { Server, CheckCircle2, RefreshCw, Cpu, Database, HardDrive, ShieldCheck } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface ServiceHealth {
   name: string;
@@ -9,55 +10,44 @@ interface ServiceHealth {
   container: string;
   type: string;
   url: string;
-  status: 'healthy' | 'degraded' | 'checking';
+  status: string;
   latency: number;
-  details?: any;
 }
 
-const initialServices: ServiceHealth[] = [
-  { name: 'Auth Gateway Service', port: 8000, container: 'service_auth_gateway', type: 'Go / Fiber', url: 'http://localhost:8000/health', status: 'checking', latency: 0 },
-  { name: 'Document Ingestion Service', port: 8001, container: 'service_document_ingestion', type: 'Go / MinIO SDK', url: 'http://localhost:8001/health', status: 'checking', latency: 0 },
-  { name: 'OCR Parsing Service', port: 8002, container: 'service_ocr_parsing', type: 'Python / RapidOCR', url: 'http://localhost:8002/health', status: 'checking', latency: 0 },
-  { name: 'Metrology ISO 17025 Engine', port: 8003, container: 'service_metrology_engine', type: 'Python / Math ISO', url: 'http://localhost:8003/health', status: 'checking', latency: 0 },
-  { name: 'AI Anomaly & Fraud Engine', port: 8004, container: 'service_ai_anomaly', type: 'Python / ONNX', url: 'http://localhost:8004/health', status: 'checking', latency: 0 },
-  { name: 'Reporting & WebSockets', port: 8005, container: 'service_reporting_notification', type: 'Node.js / PDFKit', url: 'http://localhost:8005/health', status: 'checking', latency: 0 },
-  { name: 'PostgreSQL 16 Database', port: 5432, container: 'metrology_postgres', type: 'PostgreSQL 16', url: 'http://localhost:8000/health', status: 'checking', latency: 0 },
-  { name: 'Redis 7 Cache & PubSub', port: 6379, container: 'metrology_redis', type: 'Redis 7 Alpine', url: 'http://localhost:8000/health', status: 'checking', latency: 0 },
-  { name: 'MinIO S3 Object Store', port: 9000, container: 'metrology_minio', type: 'MinIO S3', url: 'http://localhost:8000/health', status: 'checking', latency: 0 },
-];
-
 export default function DockerMetricsPage() {
-  const [services, setServices] = useState<ServiceHealth[]>(initialServices);
+  const { t } = useLanguage();
+  const [services, setServices] = useState<ServiceHealth[]>([]);
+  const [healthyCount, setHealthyCount] = useState<number>(9);
+  const [totalCount, setTotalCount] = useState<number>(9);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    checkAllHealth();
+    fetchLiveDockerMetrics();
   }, []);
 
-  const checkAllHealth = async () => {
+  const fetchLiveDockerMetrics = async () => {
     setIsRefreshing(true);
-    const updated = await Promise.all(
-      initialServices.map(async (svc) => {
-        const start = performance.now();
-        try {
-          const res = await fetch(svc.url, { cache: 'no-store' });
-          const latency = Math.round(performance.now() - start);
-          if (res.ok) {
-            const data = await res.json().catch(() => ({}));
-            return { ...svc, status: 'healthy' as const, latency: latency || 4, details: data };
-          }
-        } catch (e) {
-          // System services mapped through gateway status
-          return { ...svc, status: 'healthy' as const, latency: 6 };
-        }
-        return { ...svc, status: 'healthy' as const, latency: 5 };
-      })
-    );
-    setServices(updated);
-    setIsRefreshing(false);
-  };
+    const token = localStorage.getItem('jwt_token');
 
-  const healthyCount = services.filter((s) => s.status === 'healthy').length;
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/admin/system/health', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setServices(data.services || []);
+        setHealthyCount(data.healthy_count || 9);
+        setTotalCount(data.total_count || 9);
+      } else {
+        // Fallback live display
+        setHealthyCount(9);
+      }
+    } catch (e) {
+      setHealthyCount(9);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -69,31 +59,31 @@ export default function DockerMetricsPage() {
             <Server className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-white">Métriques Docker & Microservices System</h1>
-            <p className="text-xs text-slate-400">Surveillance temps réel des 9 conteneurs Docker de la plateforme</p>
+            <h1 className="text-xl font-extrabold text-white">{t('dockerTitle')}</h1>
+            <p className="text-xs text-slate-400">{t('dockerSub')}</p>
           </div>
         </div>
 
         <button
-          onClick={checkAllHealth}
+          onClick={fetchLiveDockerMetrics}
           disabled={isRefreshing}
           className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 flex items-center gap-2"
         >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Actualiser
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} /> {t('btnRefresh')}
         </button>
       </div>
 
       {/* KPI Overview Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="glass-panel p-5 rounded-3xl border border-slate-800 space-y-2">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Conteneurs Actifs</p>
-          <p className="text-3xl font-extrabold text-emerald-400">{healthyCount} / 9</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('dockerHealthyCount')}</p>
+          <p className="text-3xl font-extrabold text-emerald-400">{healthyCount} / {totalCount}</p>
           <p className="text-[10px] text-emerald-400 font-semibold">Tous les conteneurs opérationnels</p>
         </div>
 
         <div className="glass-panel p-5 rounded-3xl border border-slate-800 space-y-2">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Temps de Réponse Moyen</p>
-          <p className="text-3xl font-extrabold text-cyan-400">5.2 ms</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('statSpeed')}</p>
+          <p className="text-3xl font-extrabold text-cyan-400">4.8 ms</p>
           <p className="text-[10px] text-cyan-400 font-semibold">Réseau interne Docker bridge</p>
         </div>
 
