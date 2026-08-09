@@ -104,6 +104,7 @@ services:
       POSTGRES_DSN: "postgres://metrology_admin:SecretPassword123!@postgres:5432/metrology_db?sslmode=disable"
       REDIS_URL: "redis://:RedisSecret123!@redis:6379/0"
       DOCUMENT_SERVICE_URL: "http://document-ingestion:8001"
+      OCR_SERVICE_URL: "http://ocr-parsing:8002"
       DEFAULT_ADMIN_USERNAME: "fati_sadiki"
       DEFAULT_ADMIN_PASSWORD: "fati2004@"
     ports:
@@ -150,6 +151,7 @@ services:
     restart: always
     environment:
       PORT_OCR: 8002
+      MINIO_PUBLIC_BASE_URL: "http://minio:9000"
     ports:
       - "8002:8002"
     networks:
@@ -220,7 +222,6 @@ services:
       - auth-gateway
     networks:
       - metrology-net
-
 
 
 

@@ -47,10 +47,20 @@ func JWTMiddleware() fiber.Handler {
 			})
 		}
 
-		// Store user details in Fiber Context Locals
+		// Store user details in Fiber Context Locals & Request Headers for downstream services
 		c.Locals("user_id", claims["user_id"])
 		c.Locals("username", claims["username"])
 		c.Locals("role", claims["role"])
+
+		if userIDStr, ok := claims["user_id"].(string); ok {
+			c.Request().Header.Set("X-User-ID", userIDStr)
+		}
+		if usernameStr, ok := claims["username"].(string); ok {
+			c.Request().Header.Set("X-User-Name", usernameStr)
+		}
+		if roleStr, ok := claims["role"].(string); ok {
+			c.Request().Header.Set("X-User-Role", roleStr)
+		}
 
 		return c.Next()
 	}

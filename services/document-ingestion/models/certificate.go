@@ -21,8 +21,8 @@ type Certificate struct {
 	NextCalibrationDate *time.Time `gorm:"column:next_calibration_date" json:"next_calibration_date"`
 	AmbientTemperature  string    `gorm:"column:ambient_temperature" json:"ambient_temperature"`
 	AmbientHumidity     string    `gorm:"column:ambient_humidity" json:"ambient_humidity"`
-	UploadedBy          string    `gorm:"column:uploaded_by" json:"uploaded_by"`
-	ValidatedBy         string    `gorm:"column:validated_by" json:"validated_by"`
+	UploadedBy          *string   `gorm:"column:uploaded_by" json:"uploaded_by"`
+	ValidatedBy         *string   `gorm:"column:validated_by" json:"validated_by"`
 	CreatedAt           time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt           time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }

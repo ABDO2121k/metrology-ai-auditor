@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -101,6 +102,27 @@ func UploadToMinIO(ctx context.Context, objectName string, reader io.Reader, obj
 	}
 	s3Path := fmt.Sprintf("%s/%s", BucketName, info.Key)
 	return s3Path, nil
+}
+
+// DeleteFromMinIO deletes an object given an s3Path returned by UploadToMinIO (format: "bucket/key...")
+func DeleteFromMinIO(ctx context.Context, s3Path string) error {
+	if s3Path == "" {
+		return nil
+	}
+	// Normalize and extract object key
+	normalized := s3Path
+	// If path contains bucket prefix, remove it
+	if strings.HasPrefix(normalized, BucketName+"/") {
+		normalized = strings.TrimPrefix(normalized, BucketName+"/")
+	}
+	if strings.HasPrefix(normalized, "/") {
+		normalized = strings.TrimPrefix(normalized, "/")
+	}
+	if normalized == "" {
+		return nil
+	}
+	err := MinIOClient.RemoveObject(ctx, BucketName, normalized, minio.RemoveObjectOptions{})
+	return err
 }
 
 func PublishEvent(channel string, payload map[string]interface{}) {

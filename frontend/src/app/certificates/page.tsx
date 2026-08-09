@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   FileSpreadsheet, RefreshCw, Search, CheckCircle2, Clock, 
-  AlertTriangle, Eye, Hash, Calendar, Upload
+  AlertTriangle, Eye, Hash, Calendar, Upload, Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
@@ -24,6 +24,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
     label: 'Pending OCR', 
     color: 'text-amber-400 bg-amber-500/15 border-amber-500/30',
     icon: <Clock className="w-3 h-3" />
+  },
+  PROCESSING: {
+    label: 'OCR Processed',
+    color: 'text-blue-400 bg-blue-500/15 border-blue-500/30',
+    icon: <CheckCircle2 className="w-3 h-3" />
   },
   OCR_COMPLETE: { 
     label: 'OCR Complete', 
@@ -73,6 +78,25 @@ export default function CertificatesPage() {
       console.error('Failed to fetch certificates:', e);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm(t('confirmDelete') || 'Delete certificate?')) return;
+    try {
+      const token = localStorage.getItem('jwt_token');
+      const res = await fetch(`http://localhost:8000/api/v1/certificates/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        // refresh list
+        fetchCerts();
+      } else {
+        console.error('Failed to delete certificate, status:', res.status);
+      }
+    } catch (e) {
+      console.error('Failed to delete certificate:', e);
     }
   };
 
@@ -162,6 +186,7 @@ export default function CertificatesPage() {
         >
           <option value="ALL">{t('certsFilterAll')}</option>
           <option value="PENDING_OCR">PENDING_OCR</option>
+          <option value="PROCESSING">PROCESSING</option>
           <option value="OCR_COMPLETE">OCR_COMPLETE</option>
           <option value="VALIDATED_CONFORME">CONFORME</option>
           <option value="VALIDATED_NON_CONFORME">NON-CONFORME</option>
@@ -229,14 +254,22 @@ export default function CertificatesPage() {
                           {cert.created_at ? new Date(cert.created_at).toLocaleDateString('fr-MA') : '—'}
                         </div>
                       </td>
-                      <td className="p-4 text-right rtl:text-left">
-                        <button
-                          className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 transition"
-                          title={t('certViewBtn')}
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
+                      <td className="p-4 text-right rtl:text-left flex items-center justify-end gap-2">
+                          <Link
+                            href={`/certificates/${cert.id}`}
+                            className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 transition"
+                            title={t('certViewBtn')}
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(cert.id)}
+                            className="p-2 rounded-xl bg-rose-500/5 hover:bg-rose-500/10 text-rose-400 transition"
+                            title={t('certRemoveBtn')}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
                     </tr>
                   );
                 })

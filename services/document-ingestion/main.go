@@ -37,6 +37,7 @@ func main() {
 	api.Post("/upload", handlers.UploadCertificate)
 	api.Get("/", handlers.ListCertificates)
 	api.Get("/:id", handlers.GetCertificateByID)
+	api.Delete("/:id", handlers.DeleteCertificate)
 
 	port := os.Getenv("PORT_DOCUMENT")
 	if port == "" {

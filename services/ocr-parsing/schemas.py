@@ -3,7 +3,8 @@ from typing import List, Optional
 
 class OCRParseRequest(BaseModel):
     certificate_id: str
-    file_bytes_path: str
+    file_bytes_path: Optional[str] = None
+    s3_path: Optional[str] = None
 
 class MeasurementRow(BaseModel):
     point_index: int

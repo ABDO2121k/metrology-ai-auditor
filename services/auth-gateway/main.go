@@ -61,13 +61,30 @@ func main() {
 	analytics.Get("/dashboard", controllers.GetAnalytics)
 
 	// Dynamic Reverse Proxy Routes to Downstream Microservices
+	// Handle preflight OPTIONS for proxied routes without requiring auth
+	app.Options("/certificates*", func(c *fiber.Ctx) error {
+		c.Set("Access-Control-Allow-Origin", "*")
+		c.Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+		c.Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+	app.Options("/ocr*", func(c *fiber.Ctx) error {
+		c.Set("Access-Control-Allow-Origin", "*")
+		c.Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+		c.Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+
 	protected.All("/certificates*", middleware.RequireRole("TECHNICIAN", "VALIDATOR", "DIRECTOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
 		docSvcURL := os.Getenv("DOCUMENT_SERVICE_URL")
 		if docSvcURL == "" {
 			docSvcURL = "http://localhost:8001"
 		}
 		target := docSvcURL + c.Path()
-		return proxy.Forward(target)(c)
+		err := proxy.Forward(target)(c)
+		// Ensure CORS header present on proxied response
+		c.Set("Access-Control-Allow-Origin", "*")
+		return err
 	})
 
 	protected.All("/ocr*", middleware.RequireRole("TECHNICIAN", "VALIDATOR", "DIRECTOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
@@ -76,7 +93,10 @@ func main() {
 			ocrSvcURL = "http://localhost:8002"
 		}
 		target := ocrSvcURL + c.Path()
-		return proxy.Forward(target)(c)
+		err := proxy.Forward(target)(c)
+		// Ensure CORS header present on proxied response
+		c.Set("Access-Control-Allow-Origin", "*")
+		return err
 	})
 
 	protected.All("/metrology*", middleware.RequireRole("VALIDATOR", "DIRECTOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
