@@ -94,7 +94,39 @@ const translations: Record<Language, Record<string, string>> = {
     roleTechnicianText: "Espace Technicien : Importez vos certificats et inspectez les extractions OCR.",
     roleValidatorText: "Espace Responsable Qualité : Inspectez les calculs d'incertitude et signez les certificats.",
     roleDirectorText: "Espace Directeur : Analysez les indicateurs de performance et les graphiques de conformité.",
-    roleAdminText: "Espace Administrateur : Gérez les comptes utilisateurs, mots de passe et la santé des conteneurs."
+    roleAdminText: "Espace Administrateur : Gérez les comptes utilisateurs, mots de passe et la santé des conteneurs.",
+
+    // Features section (Key Features Grid)
+    featOcrTitle: "Extraction OCR Multi-Modèle",
+    featOcrDesc: "Extraction automatique des champs textuels depuis les PDF de certificats d'étalonnage via OCR multi-couche.",
+    featMathTitle: "Calcul Incertitudes ISO",
+    featMathDesc: "Vérification automatique de l'incertitude élargie U selon la règle |Corr| + U ≤ EMT de la norme ISO 17025.",
+    featAiTitle: "IA & Détection d'Anomalies",
+    featAiDesc: "Réseau neuronal ONNX pour détecter les anomalies critiques : EMT dépassés, tampons manquants, signatures absentes.",
+    featReportTitle: "Rapports PDF & Audit Trail",
+    featReportDesc: "Génération automatique de rapports d'audit PDF signés avec archivage sécurisé dans MinIO S3.",
+
+    // Sidebar portal section labels
+    sidebarTechnicianPortal: "Portail Technicien",
+    sidebarValidatorPortal: "Portail Responsable Qualité",
+    sidebarDirectorPortal: "Portail Directeur",
+    sidebarAdminPortal: "Portail Administrateur",
+
+    // Dashboard page
+    dashboardWelcome: "Bienvenue dans votre espace de travail",
+    dashboardSubtitle: "Tableau de bord personnalisé selon votre rôle dans la plateforme",
+    dashboardTechKpi1: "Certificats Déposés",
+    dashboardTechKpi2: "En Attente de Validation",
+    dashboardTechKpi3: "Conformes ISO 17025",
+    dashboardTechKpi4: "Anomalies Détectées",
+    dashboardTechDesc: "Importez vos certificats PDF d'étalonnage, inspectez les extractions OCR et suivez le statut de validation en temps réel.",
+    dashboardValDesc: "Auditez les certificats soumis, validez les calculs d'incertitude et signez électroniquement les rapports.",
+    dashboardDirDesc: "Visualisez les KPIs de conformité ISO 17025 et les graphiques de performance du laboratoire.",
+    dashboardAdminDesc: "Gérez les comptes utilisateurs, surveillez les 9 microservices Docker et contrôlez l'accès à la plateforme.",
+    dashboardQuickLinks: "Accès Rapides",
+    dashboardGoTo: "Accéder →",
+    featuresTitle: "Fonctionnalités Clés du Système",
+    featuresSubtitle: "Intelligence artificielle et métrologie au service de l'audit ISO 17025"
   },
   en: {
     // Topbar & Nav
@@ -177,7 +209,39 @@ const translations: Record<Language, Record<string, string>> = {
     roleTechnicianText: "Technician Portal: Upload certificates and inspect OCR bounding box extractions.",
     roleValidatorText: "Validator Portal: Audit uncertainty calculations and electronically sign certificates.",
     roleDirectorText: "Director Portal: Analyze executive KPIs, throughput trends, and compliance charts.",
-    roleAdminText: "Administrator Portal: Manage user accounts, force password resets, and monitor container health."
+    roleAdminText: "Administrator Portal: Manage user accounts, force password resets, and monitor container health.",
+
+    // Features section (Key Features Grid)
+    featOcrTitle: "Multi-Model OCR Extraction",
+    featOcrDesc: "Automatic text field extraction from calibration certificate PDFs via multi-layer OCR pipelines.",
+    featMathTitle: "ISO Uncertainty Calculation",
+    featMathDesc: "Automatic verification of expanded uncertainty U using the ISO 17025 rule |Corr| + U ≤ EMT.",
+    featAiTitle: "AI & Anomaly Detection",
+    featAiDesc: "ONNX neural network to detect critical anomalies: exceeded EMTs, missing stamps, absent signatures.",
+    featReportTitle: "PDF Reports & Audit Trail",
+    featReportDesc: "Automatic generation of signed PDF audit reports with secure archiving in MinIO S3.",
+
+    // Sidebar portal section labels
+    sidebarTechnicianPortal: "Technician Portal",
+    sidebarValidatorPortal: "Quality Validator Portal",
+    sidebarDirectorPortal: "Director Portal",
+    sidebarAdminPortal: "Administrator Portal",
+
+    // Dashboard page
+    dashboardWelcome: "Welcome to your workspace",
+    dashboardSubtitle: "Personalized dashboard based on your platform role",
+    dashboardTechKpi1: "Certificates Uploaded",
+    dashboardTechKpi2: "Pending Validation",
+    dashboardTechKpi3: "ISO 17025 Compliant",
+    dashboardTechKpi4: "Anomalies Detected",
+    dashboardTechDesc: "Upload calibration certificate PDFs, inspect OCR extractions, and track validation status in real-time.",
+    dashboardValDesc: "Audit submitted certificates, validate uncertainty calculations, and electronically sign reports.",
+    dashboardDirDesc: "Visualize ISO 17025 compliance KPIs and laboratory performance charts.",
+    dashboardAdminDesc: "Manage user accounts, monitor 9 Docker microservices, and control platform access.",
+    dashboardQuickLinks: "Quick Access",
+    dashboardGoTo: "Go →",
+    featuresTitle: "Key System Features",
+    featuresSubtitle: "AI and metrology at the service of ISO 17025 audit automation"
   },
   ar: {
     // Topbar & Nav
@@ -260,7 +324,39 @@ const translations: Record<Language, Record<string, string>> = {
     roleTechnicianText: "فضاء الفني: قم برفع الشهادات وفحص مخرجات استخراج النصوص الضوئية.",
     roleValidatorText: "فضاء مسؤول الجودة: تدقيق حسابات الارتياب والتوقيع الإلكتروني على الشهادات.",
     roleDirectorText: "فضاء مدير المختبر: تحليل مؤشرات الأداء والرسومات البيانية للمطابقة.",
-    roleAdminText: "فضاء المسؤول: إدارة حسابات المستخدمين وتغيير كلمات المرور ومراقبة الحاويات."
+    roleAdminText: "فضاء المسؤول: إدارة حسابات المستخدمين وتغيير كلمات المرور ومراقبة الحاويات.",
+
+    // Features section (Key Features Grid)
+    featOcrTitle: "استخراج النصوص متعدد النماذج",
+    featOcrDesc: "استخراج تلقائي للحقول النصية من ملفات PDF لشهادات المعايرة عبر سلاسل معالجة OCR متعددة الطبقات.",
+    featMathTitle: "حساب عدم اليقين وفق ISO",
+    featMathDesc: "التحقق التلقائي من عدم اليقين الموسع U وفق قاعدة ISO 17025: |Corr| + U ≤ EMT.",
+    featAiTitle: "الذكاء الاصطناعي ورصد الشذوذ",
+    featAiDesc: "شبكة عصبية ONNX لاكتشاف الشذوذات الحرجة: تجاوز حدود EMT، الأختام المفقودة، التوقيعات الغائبة.",
+    featReportTitle: "تقارير PDF ومسار التدقيق",
+    featReportDesc: "توليد تلقائي لتقارير تدقيق PDF موقعة مع أرشفة آمنة في MinIO S3.",
+
+    // Sidebar portal section labels
+    sidebarTechnicianPortal: "بوابة الفني",
+    sidebarValidatorPortal: "بوابة مسؤول الجودة",
+    sidebarDirectorPortal: "بوابة المدير",
+    sidebarAdminPortal: "بوابة المسؤول",
+
+    // Dashboard page
+    dashboardWelcome: "مرحباً بك في فضاء العمل",
+    dashboardSubtitle: "لوحة تحكم شخصية بناءً على دورك في المنصة",
+    dashboardTechKpi1: "شهادات مرفوعة",
+    dashboardTechKpi2: "في انتظار التحقق",
+    dashboardTechKpi3: "مطابقة ISO 17025",
+    dashboardTechKpi4: "شذوذات مكتشفة",
+    dashboardTechDesc: "ارفع ملفات PDF لشهادات المعايرة وافحص مخرجات الاستخراج وتتبع حالة التحقق في الوقت الفعلي.",
+    dashboardValDesc: "دقق الشهادات المقدمة وتحقق من حسابات الارتياب ووقع التقارير إلكترونياً.",
+    dashboardDirDesc: "اعرض مؤشرات الأداء للمطابقة ISO 17025 ورسومات أداء المختبر البيانية.",
+    dashboardAdminDesc: "أدر حسابات المستخدمين وراقب التسعة حاويات دوكر وتحكم في صلاحيات المنصة.",
+    dashboardQuickLinks: "وصول سريع",
+    dashboardGoTo: "اذهب →",
+    featuresTitle: "الميزات الرئيسية للنظام",
+    featuresSubtitle: "الذكاء الاصطناعي والمترولوجيا في خدمة التدقيق وفق ISO 17025"
   }
 };
 

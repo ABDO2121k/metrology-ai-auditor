@@ -36,18 +36,18 @@ export default function LoginPage() {
       localStorage.setItem('jwt_token', data.token);
       localStorage.setItem('jwt_user', JSON.stringify(data.user));
 
-      // SMART REDIRECTION based on JWT Role
+      // SMART REDIRECTION based on JWT Role -> always go to /dashboard first
       const role = data.user?.role;
       if (role === 'ADMINISTRATOR') {
-        router.push('/admin/docker-metrics');
+        router.push('/dashboard');
       } else if (role === 'TECHNICIAN') {
-        router.push('/upload');
+        router.push('/dashboard');
       } else if (role === 'VALIDATOR') {
-        router.push('/certificates');
+        router.push('/dashboard');
       } else if (role === 'DIRECTOR') {
-        router.push('/director-dashboard');
+        router.push('/dashboard');
       } else {
-        router.push('/');
+        router.push('/dashboard');
       }
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -96,34 +96,34 @@ export default function LoginPage() {
                 onClick={() => fillCredentials('fati_sadiki', 'fati2004@')}
                 className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-left rtl:text-right hover:bg-purple-500/20 transition group"
               >
-                <div className="font-bold text-purple-300">Root Admin</div>
+                <div className="font-bold text-purple-300">{t('role_ADMINISTRATOR')}</div>
                 <div className="text-[10px] text-slate-400">fati_sadiki</div>
               </button>
 
               <button
                 type="button"
-                onClick={() => fillCredentials('tech_fati', 'TechPassword123!')}
+                onClick={() => fillCredentials('tech_fati', 'fati2004@')}
                 className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-left rtl:text-right hover:bg-cyan-500/20 transition group"
               >
-                <div className="font-bold text-cyan-300">Technicien</div>
+                <div className="font-bold text-cyan-300">{t('role_TECHNICIAN')}</div>
                 <div className="text-[10px] text-slate-400">tech_fati</div>
               </button>
 
               <button
                 type="button"
-                onClick={() => fillCredentials('val_fati', 'ValPassword123!')}
+                onClick={() => fillCredentials('val_fati', 'fati2004@')}
                 className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-left rtl:text-right hover:bg-emerald-500/20 transition group"
               >
-                <div className="font-bold text-emerald-300">Responsable Qualité</div>
+                <div className="font-bold text-emerald-300">{t('role_VALIDATOR')}</div>
                 <div className="text-[10px] text-slate-400">val_fati</div>
               </button>
 
               <button
                 type="button"
-                onClick={() => fillCredentials('director_fati', 'DirectorPassword123!')}
+                onClick={() => fillCredentials('director_fati', 'fati2004@')}
                 className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left rtl:text-right hover:bg-amber-500/20 transition group"
               >
-                <div className="font-bold text-amber-300">Directeur Labo</div>
+                <div className="font-bold text-amber-300">{t('role_DIRECTOR')}</div>
                 <div className="text-[10px] text-slate-400">director_fati</div>
               </button>
 

@@ -162,9 +162,9 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             <div className="space-y-1">
               <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('navHome')}</p>
               <Link
-                href="/"
+                href="/dashboard"
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                  pathname === '/' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                  pathname === '/dashboard' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4 text-cyan-400" /> {t('navHome')}
@@ -174,7 +174,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             {/* STRICT ROLE FILTERING: TECHNICIAN Portal Links */}
             {role === 'TECHNICIAN' && (
               <div className="space-y-1">
-                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Technician Portal</p>
+                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('sidebarTechnicianPortal')}</p>
                 <Link
                   href="/upload"
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
@@ -197,7 +197,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             {/* STRICT ROLE FILTERING: VALIDATOR Portal Links */}
             {role === 'VALIDATOR' && (
               <div className="space-y-1">
-                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Validator Portal</p>
+                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('sidebarValidatorPortal')}</p>
                 <Link
                   href="/certificates"
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
@@ -228,7 +228,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             {/* STRICT ROLE FILTERING: DIRECTOR Portal Links */}
             {role === 'DIRECTOR' && (
               <div className="space-y-1">
-                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Director Portal</p>
+                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('sidebarDirectorPortal')}</p>
                 <Link
                   href="/director-dashboard"
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
@@ -251,7 +251,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             {/* STRICT ROLE FILTERING: ADMINISTRATOR Portal Links ONLY */}
             {role === 'ADMINISTRATOR' && (
               <div className="space-y-1">
-                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Admin Portal</p>
+                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('sidebarAdminPortal')}</p>
                 <Link
                   href="/admin/users"
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
