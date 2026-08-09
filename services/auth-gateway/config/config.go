@@ -1,7 +1,7 @@
 package config
 
 import (
-	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -20,85 +20,144 @@ var (
 )
 
 func InitConfig() {
+	var err error
+
+	// Load POSTGRES_DSN directly or construct from environment variables
+	dsn := os.Getenv("POSTGRES_DSN")
+	if dsn == "" {
+		dbHost := os.Getenv("DB_HOST")
+		if dbHost == "" {
+			dbHost = os.Getenv("POSTGRES_HOST")
+		}
+		if dbHost == "" {
+			dbHost = "postgres"
+		}
+
+		dbUser := os.Getenv("DB_USER")
+		if dbUser == "" {
+			dbUser = os.Getenv("POSTGRES_USER")
+		}
+		if dbUser == "" {
+			dbUser = "metrology_admin"
+		}
+
+		dbPassword := os.Getenv("DB_PASSWORD")
+		if dbPassword == "" {
+			dbPassword = os.Getenv("POSTGRES_PASSWORD")
+		}
+		if dbPassword == "" {
+			dbPassword = "SecretPassword123!"
+		}
+
+		dbName := os.Getenv("DB_NAME")
+		if dbName == "" {
+			dbName = os.Getenv("POSTGRES_DB")
+		}
+		if dbName == "" {
+			dbName = "metrology_db"
+		}
+
+		dbPort := os.Getenv("DB_PORT")
+		if dbPort == "" {
+			dbPort = os.Getenv("POSTGRES_PORT")
+		}
+		if dbPort == "" {
+			dbPort = "5432"
+		}
+
+		dsn = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
+			dbHost, dbUser, dbPassword, dbName, dbPort)
+	}
+
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Failed to connect to PostgreSQL database: %v", err)
+	}
+
+	// AutoMigrate models
+	err = DB.AutoMigrate(&models.User{})
+	if err != nil {
+		log.Printf("GORM AutoMigrate warning: %v", err)
+	}
+
+	// Load Redis connection configuration
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL != "" {
+		opt, err := redis.ParseURL(redisURL)
+		if err == nil {
+			RedisClient = redis.NewClient(opt)
+		}
+	}
+
+	if RedisClient == nil {
+		redisHost := os.Getenv("REDIS_HOST")
+		redisPort := os.Getenv("REDIS_PORT")
+		if redisHost == "" {
+			redisHost = "redis"
+		}
+		if redisPort == "" {
+			redisPort = "6379"
+		}
+		RedisClient = redis.NewClient(&redis.Options{
+			Addr: fmt.Sprintf("%s:%s", redisHost, redisPort),
+		})
+	}
+
 	JWTSecret = os.Getenv("JWT_SECRET")
 	if JWTSecret == "" {
 		JWTSecret = "SuperSecretJwtKey2026ProcessInstruments!"
 	}
 
-	dsn := os.Getenv("POSTGRES_DSN")
-	if dsn == "" {
-		dsn = "postgres://metrology_admin:SecretPassword123!@localhost:5432/metrology_db?sslmode=disable"
-	}
-
-	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
-	}
-
-	log.Println("PostgreSQL connection established successfully.")
-
-	// Auto-Migrate Schemas
-	if err := DB.AutoMigrate(&models.User{}); err != nil {
-		log.Printf("Warning: GORM AutoMigrate failed: %v", err)
-	}
-
-	// Seed Default Root Admin Account
-	seedDefaultAdmin()
-
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "redis://:RedisSecret123!@localhost:6379/0"
-	}
-
-	opt, err := redis.ParseURL(redisURL)
-	if err != nil {
-		log.Fatalf("Failed to parse Redis URL: %v", err)
-	}
-
-	RedisClient = redis.NewClient(opt)
-	if err := RedisClient.Ping(context.Background()).Err(); err != nil {
-		log.Printf("Warning: Redis Ping failed: %v", err)
-	} else {
-		log.Println("Redis connection established successfully.")
-	}
+	// Seed default root admin and role users
+	seedDefaultUsers()
 }
 
-func seedDefaultAdmin() {
+func seedDefaultUsers() {
 	adminUsername := os.Getenv("DEFAULT_ADMIN_USERNAME")
+	adminPassword := os.Getenv("DEFAULT_ADMIN_PASSWORD")
+
 	if adminUsername == "" {
-		adminUsername = "admin"
+		adminUsername = "fati_sadiki"
+	}
+	if adminPassword == "" {
+		adminPassword = "fati2004@"
 	}
 
-	adminPassword := os.Getenv("DEFAULT_ADMIN_PASSWORD")
-	if adminPassword == "" {
-		adminPassword = "AdminSecret123!"
+	seedSingleUser(adminUsername, adminPassword, "fati_sadiki@process-instruments.ma", "Fatima-Ezzahrae Sadiki", models.RoleAdministrator)
+	seedSingleUser("tech_fati", adminPassword, "tech_fati@process-instruments.ma", "Technicien Étalonneur", models.RoleTechnician)
+	seedSingleUser("val_fati", adminPassword, "val_fati@process-instruments.ma", "Responsable Validation Qualité", models.RoleValidator)
+	seedSingleUser("director_fati", adminPassword, "director_fati@process-instruments.ma", "Directeur du Laboratoire", models.RoleDirector)
+}
+
+func seedSingleUser(username, password, email, fullName string, role models.UserRole) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("Failed to hash password for %s: %v", username, err)
+		return
 	}
 
 	var existingUser models.User
-	if err := DB.Where("username = ?", adminUsername).First(&existingUser).Error; err == nil {
-		log.Printf("Root admin account '%s' already exists.", adminUsername)
+	if err := DB.Where("username = ?", username).First(&existingUser).Error; err == nil {
+		// Update password hash to guarantee fati2004@ works cleanly
+		existingUser.PasswordHash = string(hash)
+		existingUser.Role = role
+		DB.Save(&existingUser)
+		log.Printf("User '%s' updated with valid bcrypt password hash.", username)
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
-	if err != nil {
-		log.Printf("Failed to hash default admin password: %v", err)
-		return
-	}
-
-	adminUser := models.User{
-		Username:     adminUsername,
-		Email:        adminUsername + "@process-instruments.com",
+	user := models.User{
+		Username:     username,
+		Email:        email,
 		PasswordHash: string(hash),
-		FullName:     "System Root Administrator",
-		Role:         models.RoleAdministrator,
+		FullName:     fullName,
+		Role:         role,
 		IsActive:     true,
 	}
 
-	if err := DB.Create(&adminUser).Error; err != nil {
-		log.Printf("Failed to seed default admin user: %v", err)
+	if err := DB.Create(&user).Error; err != nil {
+		log.Printf("Failed to seed user %s: %v", username, err)
 	} else {
-		log.Printf("Root admin account '%s' provisioned successfully from environment configuration.", adminUsername)
+		log.Printf("User '%s' (%s) seeded successfully.", username, role)
 	}
 }

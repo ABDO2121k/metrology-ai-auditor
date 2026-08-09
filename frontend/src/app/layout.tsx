@@ -55,7 +55,8 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
-  const isLoginPage = pathname === '/login';
+  // HIDE SIDEBAR ON LANDING PAGE ('/') AND LOGIN PAGE ('/login')
+  const hideSidebar = pathname === '/' || pathname === '/login';
   const role = user?.role || 'GUEST';
 
   return (
@@ -151,11 +152,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Main Container with STRICTLY ROLE-FILTERED Sidebar */}
+      {/* Main Container with Dynamic Sidebar */}
       <div className="flex-1 flex">
         
-        {/* Dynamic Sidebar (Hidden on Login page) */}
-        {!isLoginPage && (
+        {/* Dynamic Sidebar (Hidden on Landing Page '/' and Login Page '/login') */}
+        {!hideSidebar && (
           <aside className="w-64 glass-panel border-r rtl:border-r-0 rtl:border-l border-slate-800/80 p-4 space-y-6 hidden md:block">
             
             <div className="space-y-1">
@@ -265,7 +266,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                     pathname === '/admin/docker-metrics' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
                   }`}
                 >
-                  <Server className="w-4 h-4 text-cyan-400" /> Métriques Docker
+                  <Server className="w-4 h-4 text-cyan-400" /> {t('navHealth')}
                 </Link>
               </div>
             )}

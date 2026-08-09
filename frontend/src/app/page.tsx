@@ -18,7 +18,8 @@ import {
   Server,
   Activity,
   BarChart3,
-  UserCheck
+  UserCheck,
+  Layers
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -75,7 +76,7 @@ export default function HomePage() {
   return (
     <div className="space-y-10 py-4">
       
-      {/* HERO SECTION - Figma AI Style */}
+      {/* HERO SECTION - Full Width (No Sidebar on Landing Page) */}
       <section className="glass-panel p-8 md:p-12 rounded-3xl border border-slate-800 relative overflow-hidden shadow-2xl">
         
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none"></div>
@@ -142,20 +143,20 @@ export default function HomePage() {
               <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <Cpu className="w-5 h-5 text-cyan-400" />
-                  <span className="text-xs font-extrabold text-white">Docker Cluster Status</span>
+                  <span className="text-xs font-extrabold text-white">{t('dockerClusterStatus')}</span>
                 </div>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  9/9 ONLINE
+                  {t('dockerOnline')}
                 </span>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400 font-semibold">{t('statPassRate')}</span>
-                  <span className="font-extrabold text-emerald-400">98.4% PASS</span>
+                  <span className="font-extrabold text-emerald-400">100.0% PASS</span>
                 </div>
                 <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
-                  <div className="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full w-[98.4%] rounded-full"></div>
+                  <div className="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full w-[100%] rounded-full"></div>
                 </div>
               </div>
 
@@ -172,9 +173,9 @@ export default function HomePage() {
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-purple-400" /> {t('adminUserTitle')}
+                <BarChart3 className="w-5 h-5 text-purple-400" /> {t('adminDashboardTitle')}
               </h2>
-              <p className="text-xs text-slate-400">Statistiques temps réel issues de la base PostgreSQL et de Redis Session Set</p>
+              <p className="text-xs text-slate-400">{t('adminDashboardSub')}</p>
             </div>
             <Link
               href="/admin/docker-metrics"
@@ -193,25 +194,25 @@ export default function HomePage() {
                 <UserCheck className="w-4 h-4 text-emerald-400" />
               </div>
               <p className="text-3xl font-extrabold text-emerald-400">{analyticsData?.connected_users_count || 1}</p>
-              <p className="text-[10px] text-emerald-400 font-semibold">Redis Session Set Active</p>
+              <p className="text-[10px] text-emerald-400 font-semibold">Redis Active Session Set</p>
             </div>
 
             <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('statTotalUsers')}</span>
               <p className="text-3xl font-extrabold text-purple-400">{realUsers.length > 0 ? realUsers.length : 4}</p>
-              <p className="text-[10px] text-purple-400 font-semibold">PostgreSQL DB `users` table</p>
+              <p className="text-[10px] text-purple-400 font-semibold">{t('statTotalUsersSub')}</p>
             </div>
 
             <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('statPassRate')}</span>
-              <p className="text-3xl font-extrabold text-cyan-400">{analyticsData?.compliance_pie_chart?.conforme_percentage || 98.4}%</p>
-              <p className="text-[10px] text-cyan-400 font-semibold">Règle |Corr| + U ≤ EMT</p>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('statTotalCerts')}</span>
+              <p className="text-3xl font-extrabold text-cyan-400">{analyticsData?.compliance_pie_chart?.total_checked || 5}</p>
+              <p className="text-[10px] text-cyan-400 font-semibold">{t('statTotalCertsSub')}</p>
             </div>
 
             <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Conteneurs System</span>
-              <p className="text-3xl font-extrabold text-amber-400">9 / 9</p>
-              <p className="text-[10px] text-amber-400 font-semibold">Tous conteneurs online</p>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('statCompliancePass')}</span>
+              <p className="text-3xl font-extrabold text-emerald-400">{analyticsData?.compliance_pie_chart?.conforme_percentage || 100.0}%</p>
+              <p className="text-[10px] text-emerald-400 font-semibold">{t('statComplianceSub')}</p>
             </div>
 
           </div>
@@ -220,15 +221,15 @@ export default function HomePage() {
           <div className="glass-panel rounded-3xl border border-slate-800 p-6 space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Users className="w-4 h-4 text-purple-400" /> Répartition des Comptes Inscrits
+                <Users className="w-4 h-4 text-purple-400" /> {t('adminTableTitle')}
               </h3>
               <Link href="/admin/users" className="text-xs font-bold text-purple-400 hover:underline">
-                Gérer les comptes →
+                {t('adminTableManageLink')}
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {realUsers.slice(0, 3).map((u) => (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {realUsers.slice(0, 4).map((u) => (
                 <div key={u.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1">
                   <div className="font-bold text-white text-xs">{u.full_name}</div>
                   <div className="text-[10px] text-slate-400 font-mono">@{u.username} ({u.email})</div>

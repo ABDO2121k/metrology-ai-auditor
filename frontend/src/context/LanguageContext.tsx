@@ -31,7 +31,7 @@ const translations: Record<Language, Record<string, string>> = {
     navHealth: "Métriques Docker",
     
     // Landing Page
-    heroBadge: "DÉPARTEMENT ÉLECTRIQUE · PLATFORME AI & MÉTROLOGIE",
+    heroBadge: "DÉPARTEMENT ÉLECTRIQUE · PLATEFORME AI & MÉTROLOGIE",
     heroTitle: "Système Intelligent d'Audit Métrologique",
     heroTitleGradient: "ISO 17025 & IA",
     heroDesc: "Validation automatisée des certificats d'étalonnage, calcul d'incertitudes élargie, vérification d'accréditation et détection des anomalies par réseaux de neurones.",
@@ -42,22 +42,23 @@ const translations: Record<Language, Record<string, string>> = {
     // Stats & Admin Metrics
     statCerts: "Certificats Traités",
     statAccuracy: "Précision Audit",
-    statPassRate: "Taux Conformité",
+    statPassRate: "Taux Conformité ISO 17025",
     statSpeed: "Temps Ingestion",
     statConnectedUsers: "Utilisateurs Connectés Temps Réel",
     statTotalUsers: "Comptes Utilisateurs Inscrits",
-    
-    // Features
-    featOcrTitle: "Extraction OCR & Sceaux",
-    featOcrDesc: "Détection automatique des logos d'accréditation, numéros de certificat et conditions ambiantes (23°C / 50% HR).",
-    featMathTitle: "Vérification ISO 17025",
-    featMathDesc: "Calcul de correction |Corr| + U ≤ EMT, contrôles d'hystérésis et suivi des étalons de référence.",
-    featAiTitle: "Détection Anomales ONNX",
-    featAiDesc: "Scoring de risque IA (0% à 100%) et détection des sceaux manquants, signatures absentes et falsifications.",
-    featReportTitle: "Rapports Audit MinIO",
-    featReportDesc: "Génération automatique des procès-verbaux d'audit certifiés PDF et archivage S3 sécurisé.",
+    statTotalUsersSub: "Table PostgreSQL users",
+    statTotalCerts: "Total Certificats Audités",
+    statTotalCertsSub: "Base de données Métrologie",
+    statCompliancePass: "Conformité ISO 17025",
+    statComplianceSub: "Règle |Corr| + U ≤ EMT",
+    statAnomaliesCount: "Catégories d'Anomalies Détectées",
+    statAnomaliesSub: "Modèle ONNX Anomaly",
     
     // Admin & User Management
+    adminDashboardTitle: "Tableau de Bord Administrateur (Données Réelles Backend)",
+    adminDashboardSub: "Statistiques réelles extraites de la base PostgreSQL et de l'Auth Gateway",
+    adminTableTitle: "Répartition des Comptes Inscrits",
+    adminTableManageLink: "Gérer les comptes →",
     adminUserTitle: "Gestion des Utilisateurs & Mots de Passe",
     adminUserSub: "Provisionnement des comptes et override administrateur",
     btnNewUser: "Nouveau Compte",
@@ -73,6 +74,8 @@ const translations: Record<Language, Record<string, string>> = {
     dockerTitle: "Métriques Docker & Microservices System",
     dockerSub: "Surveillance temps réel des 9 conteneurs Docker de la plateforme",
     dockerHealthyCount: "Conteneurs Opérationnels",
+    dockerClusterStatus: "Statut Conteneurs Docker",
+    dockerOnline: "9/9 EN LIGNE",
     btnRefresh: "Actualiser",
     
     // Role Badges & Welcomes
@@ -111,22 +114,23 @@ const translations: Record<Language, Record<string, string>> = {
     // Stats & Admin Metrics
     statCerts: "Certificates Processed",
     statAccuracy: "Audit Accuracy",
-    statPassRate: "Compliance Pass Rate",
+    statPassRate: "ISO 17025 Compliance Pass Rate",
     statSpeed: "Ingestion Latency",
     statConnectedUsers: "Real-Time Connected Users",
     statTotalUsers: "Registered User Accounts",
-    
-    // Features
-    featOcrTitle: "OCR & Seals Extraction",
-    featOcrDesc: "Automated accreditation seal classification, cert numbers, and ambient conditions (23°C / 50% RH).",
-    featMathTitle: "ISO 17025 Verification",
-    featMathDesc: "Guard-band calculation |Corr| + U ≤ EMT, hysteresis checks, and reference standards expiry tracking.",
-    featAiTitle: "ONNX Anomaly Scoring",
-    featAiDesc: "AI risk score (0% to 100%) flagging missing signatures, missing stamps, and data falsifications.",
-    featReportTitle: "MinIO PDF Reports",
-    featReportDesc: "Automatic generation of certified PDF audit reports stored in secure MinIO S3 buckets.",
+    statTotalUsersSub: "PostgreSQL users table",
+    statTotalCerts: "Total Audited Certificates",
+    statTotalCertsSub: "Metrology Database",
+    statCompliancePass: "ISO 17025 Compliance",
+    statComplianceSub: "Rule |Corr| + U ≤ EMT",
+    statAnomaliesCount: "Detected Anomaly Categories",
+    statAnomaliesSub: "ONNX Anomaly Model",
     
     // Admin & User Management
+    adminDashboardTitle: "Administrator Dashboard (Real Backend Data)",
+    adminDashboardSub: "Real statistics extracted from PostgreSQL database and Auth Gateway",
+    adminTableTitle: "Registered Accounts Distribution",
+    adminTableManageLink: "Manage accounts →",
     adminUserTitle: "User & Password Management",
     adminUserSub: "Account provisioning and administrator force overrides",
     btnNewUser: "New Account",
@@ -142,6 +146,8 @@ const translations: Record<Language, Record<string, string>> = {
     dockerTitle: "Docker Metrics & Microservices System",
     dockerSub: "Real-time monitoring of all 9 Docker platform containers",
     dockerHealthyCount: "Healthy Containers",
+    dockerClusterStatus: "Docker Cluster Status",
+    dockerOnline: "9/9 ONLINE",
     btnRefresh: "Refresh",
     
     // Role Badges & Welcomes
@@ -180,22 +186,23 @@ const translations: Record<Language, Record<string, string>> = {
     // Stats & Admin Metrics
     statCerts: "شهادة معالجة",
     statAccuracy: "دقة التدقيق",
-    statPassRate: "نسبة المطابقة",
+    statPassRate: "نسبة مطابقة ISO 17025",
     statSpeed: "سرعة المعالجة",
     statConnectedUsers: "المستخدمون المتصلون حالياً",
     statTotalUsers: "حسابات المستخدمين المسجلة",
-    
-    // Features
-    featOcrTitle: "استخراج OCR والأختام",
-    featOcrDesc: "التعرف التلقائي على شعارات الاعتماد، أرقام الشهادات والظروف البيئية (23°C / 50% HR).",
-    featMathTitle: "التحقق وفق ISO 17025",
-    featMathDesc: "حساب معادلة التصحيح |Corr| + U ≤ EMT وفحص التكرارية وصلاحية المعايير المرجعية.",
-    featAiTitle: "تقييم الشذوذ بالذكاء الاصطناعي",
-    featAiDesc: "مؤشر المخاطر الذكي (0% إلى 100%) وكشف التواقيع والأختام المفقودة والتزوير.",
-    featReportTitle: "تقارير تدقيق MinIO",
-    featReportDesc: "إنشاء تقارير التدقيق المعتمدة بصيغة PDF وتخزينها بأمان في حاويات MinIO S3.",
+    statTotalUsersSub: "جدول المستخدمين في بوسطجريس",
+    statTotalCerts: "إجمالي الشهادات المدققة",
+    statTotalCertsSub: "قاعدة بيانات المترولوجيا",
+    statCompliancePass: "مطابقة ISO 17025",
+    statComplianceSub: "قاعدة |Corr| + U ≤ EMT",
+    statAnomaliesCount: "فئات الشذوذ المكتشفة",
+    statAnomaliesSub: "نموذج ONNX للشذوذ",
     
     // Admin & User Management
+    adminDashboardTitle: "لوحة تحكم المسؤول (بيانات حقيقية من النظام)",
+    adminDashboardSub: "إحصائيات حقيقية مستخرجة من قاعدة بيانات بوسطجريس والممر الآمن",
+    adminTableTitle: "توزيع الحسابات المسجلة",
+    adminTableManageLink: "إدارة الحسابات ←",
     adminUserTitle: "إدارة المستخدمين وكلمات المرور",
     adminUserSub: "تهيئة الحسابات وتجاوز كلمة المرور من المسؤول",
     btnNewUser: "حساب جديد",
@@ -211,6 +218,8 @@ const translations: Record<Language, Record<string, string>> = {
     dockerTitle: "مقاييس دوكر وصحة الحاويات",
     dockerSub: "المراقبة المباشرة لجميع حاويات النظام الـ 9",
     dockerHealthyCount: "الحاويات النشطة",
+    dockerClusterStatus: "حالة حاويات دوكر",
+    dockerOnline: "9/9 متصل",
     btnRefresh: "تحديث",
     
     // Role Badges & Welcomes
