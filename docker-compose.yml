@@ -104,6 +104,8 @@ services:
       POSTGRES_DSN: "postgres://metrology_admin:SecretPassword123!@postgres:5432/metrology_db?sslmode=disable"
       REDIS_URL: "redis://:RedisSecret123!@redis:6379/0"
       DOCUMENT_SERVICE_URL: "http://document-ingestion:8001"
+      DEFAULT_ADMIN_USERNAME: "fati_sadiki"
+      DEFAULT_ADMIN_PASSWORD: "fati2004@"
     ports:
       - "8000:8000"
     depends_on:
@@ -203,6 +205,22 @@ services:
         condition: service_healthy
     networks:
       - metrology-net
+
+  web-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: service_web_frontend
+    restart: always
+    environment:
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth-gateway
+    networks:
+      - metrology-net
+
 
 
 
