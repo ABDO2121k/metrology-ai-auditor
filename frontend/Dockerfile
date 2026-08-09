@@ -7,6 +7,9 @@ RUN npm install --legacy-peer-deps || true
 
 COPY . .
 
+# Ensure public directory exists
+RUN mkdir -p public
+
 ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN npm run build
