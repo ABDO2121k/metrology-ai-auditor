@@ -6,8 +6,11 @@ import (
 	"os"
 
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	"auth-gateway/models"
 )
 
 var (
@@ -35,6 +38,14 @@ func InitConfig() {
 
 	log.Println("PostgreSQL connection established successfully.")
 
+	// Auto-Migrate Schemas
+	if err := DB.AutoMigrate(&models.User{}); err != nil {
+		log.Printf("Warning: GORM AutoMigrate failed: %v", err)
+	}
+
+	// Seed Default Root Admin Account
+	seedDefaultAdmin()
+
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
 		redisURL = "redis://:RedisSecret123!@localhost:6379/0"
@@ -50,5 +61,44 @@ func InitConfig() {
 		log.Printf("Warning: Redis Ping failed: %v", err)
 	} else {
 		log.Println("Redis connection established successfully.")
+	}
+}
+
+func seedDefaultAdmin() {
+	adminUsername := os.Getenv("DEFAULT_ADMIN_USERNAME")
+	if adminUsername == "" {
+		adminUsername = "admin"
+	}
+
+	adminPassword := os.Getenv("DEFAULT_ADMIN_PASSWORD")
+	if adminPassword == "" {
+		adminPassword = "AdminSecret123!"
+	}
+
+	var existingUser models.User
+	if err := DB.Where("username = ?", adminUsername).First(&existingUser).Error; err == nil {
+		log.Printf("Root admin account '%s' already exists.", adminUsername)
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("Failed to hash default admin password: %v", err)
+		return
+	}
+
+	adminUser := models.User{
+		Username:     adminUsername,
+		Email:        adminUsername + "@process-instruments.com",
+		PasswordHash: string(hash),
+		FullName:     "System Root Administrator",
+		Role:         models.RoleAdministrator,
+		IsActive:     true,
+	}
+
+	if err := DB.Create(&adminUser).Error; err != nil {
+		log.Printf("Failed to seed default admin user: %v", err)
+	} else {
+		log.Printf("Root admin account '%s' provisioned successfully from environment configuration.", adminUsername)
 	}
 }

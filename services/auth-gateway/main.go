@@ -47,10 +47,20 @@ func main() {
 	// Protected Endpoints
 	protected := api.Group("/", middleware.JWTMiddleware())
 	protected.Get("/auth/profile", controllers.GetProfile)
-	protected.Post("/auth/register", middleware.RequireRole("ADMINISTRATOR"), controllers.Register)
+	protected.Put("/auth/change-password", controllers.ChangePassword)
+
+	// Admin Only User & Password Management Endpoints
+	admin := protected.Group("/admin", middleware.RequireRole("ADMINISTRATOR"))
+	admin.Get("/users", controllers.ListUsers)
+	admin.Post("/users/register", controllers.Register)
+	admin.Put("/users/:id/reset-password", controllers.AdminResetPassword)
+
+	// Director & Admin Analytics Endpoint
+	analytics := protected.Group("/analytics", middleware.RequireRole("DIRECTOR", "ADMINISTRATOR", "VALIDATOR"))
+	analytics.Get("/dashboard", controllers.GetAnalytics)
 
 	// Dynamic Reverse Proxy Routes to Downstream Microservices
-	protected.All("/certificates*", middleware.RequireRole("TECHNICIAN", "VALIDATOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
+	protected.All("/certificates*", middleware.RequireRole("TECHNICIAN", "VALIDATOR", "DIRECTOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
 		docSvcURL := os.Getenv("DOCUMENT_SERVICE_URL")
 		if docSvcURL == "" {
 			docSvcURL = "http://localhost:8001"
@@ -59,7 +69,7 @@ func main() {
 		return proxy.Forward(target)(c)
 	})
 
-	protected.All("/ocr*", middleware.RequireRole("TECHNICIAN", "VALIDATOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
+	protected.All("/ocr*", middleware.RequireRole("TECHNICIAN", "VALIDATOR", "DIRECTOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
 		ocrSvcURL := os.Getenv("OCR_SERVICE_URL")
 		if ocrSvcURL == "" {
 			ocrSvcURL = "http://localhost:8002"
@@ -68,7 +78,7 @@ func main() {
 		return proxy.Forward(target)(c)
 	})
 
-	protected.All("/metrology*", middleware.RequireRole("VALIDATOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
+	protected.All("/metrology*", middleware.RequireRole("VALIDATOR", "DIRECTOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
 		metroSvcURL := os.Getenv("METROLOGY_SERVICE_URL")
 		if metroSvcURL == "" {
 			metroSvcURL = "http://localhost:8003"
@@ -77,7 +87,7 @@ func main() {
 		return proxy.Forward(target)(c)
 	})
 
-	protected.All("/anomalies*", middleware.RequireRole("VALIDATOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
+	protected.All("/anomalies*", middleware.RequireRole("VALIDATOR", "DIRECTOR", "ADMINISTRATOR"), func(c *fiber.Ctx) error {
 		aiSvcURL := os.Getenv("AI_SERVICE_URL")
 		if aiSvcURL == "" {
 			aiSvcURL = "http://localhost:8004"
