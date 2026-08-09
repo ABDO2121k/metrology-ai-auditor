@@ -166,3 +166,17 @@ services:
     networks:
       - metrology-net
 
+  ai-anomaly:
+    build:
+      context: ./services/ai-anomaly
+      dockerfile: Dockerfile
+    container_name: service_ai_anomaly
+    restart: always
+    environment:
+      PORT_ANOMALY: 8004
+    ports:
+      - "8004:8004"
+    networks:
+      - metrology-net
+
+
