@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Go compiled binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+services/auth-gateway/gateway
+services/document-ingestion/document-ingestion
+
+# Environment files
+.env
+
+# OS files
+.DS_Store
+Thumbs.db

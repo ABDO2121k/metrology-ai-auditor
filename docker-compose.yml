@@ -1,5 +1,3 @@
-version: '3.8'
-
 networks:
   metrology-net:
     driver: bridge
@@ -11,10 +9,9 @@ volumes:
 
 services:
   # ==========================================
-  # 1. DATABASE & CACHE & STORAGE INFRASTRUCTURE
+  # 1. INFRASTRUCTURE SERVICES
   # ==========================================
 
-  # PostgreSQL 16 Relational Database
   postgres:
     image: postgres:16-alpine
     container_name: metrology_postgres
@@ -36,7 +33,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis 7 Cache & Message Bus
   redis:
     image: redis:7-alpine
     container_name: metrology_redis
@@ -54,7 +50,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # MinIO Object Storage (Primary Storage for PDFs & Reports)
   minio:
     image: minio/minio:latest
     container_name: metrology_minio
@@ -64,8 +59,8 @@ services:
       MINIO_ROOT_USER: minio_admin
       MINIO_ROOT_PASSWORD: MinioSecretPassword123!
     ports:
-      - "9000:9000"   # S3 API Port
-      - "9001:9001"   # Web Console Port
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
     networks:
@@ -76,7 +71,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # MinIO Bucket Auto-Initializer
   createbuckets:
     image: minio/mc:latest
     container_name: metrology_minio_init
@@ -93,3 +87,82 @@ services:
       "
     networks:
       - metrology-net
+
+  # ==========================================
+  # 2. MICROSERVICES
+  # ==========================================
+
+  auth-gateway:
+    build:
+      context: ./services/auth-gateway
+      dockerfile: Dockerfile
+    container_name: service_auth_gateway
+    restart: always
+    environment:
+      PORT_GATEWAY: 8000
+      JWT_SECRET: SuperSecretJwtKey2026ProcessInstruments!
+      POSTGRES_DSN: "postgres://metrology_admin:SecretPassword123!@postgres:5432/metrology_db?sslmode=disable"
+      REDIS_URL: "redis://:RedisSecret123!@redis:6379/0"
+      DOCUMENT_SERVICE_URL: "http://document-ingestion:8001"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - metrology-net
+
+  document-ingestion:
+    build:
+      context: ./services/document-ingestion
+      dockerfile: Dockerfile
+    container_name: service_document_ingestion
+    restart: always
+    environment:
+      PORT_DOCUMENT: 8001
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: "minio_admin"
+      MINIO_SECRET_KEY: "MinioSecretPassword123!"
+      MINIO_BUCKET: "metrology-certificates"
+      POSTGRES_DSN: "postgres://metrology_admin:SecretPassword123!@postgres:5432/metrology_db?sslmode=disable"
+      REDIS_URL: "redis://:RedisSecret123!@redis:6379/0"
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - metrology-net
+
+  ocr-parsing:
+    build:
+      context: ./services/ocr-parsing
+      dockerfile: Dockerfile
+    container_name: service_ocr_parsing
+    restart: always
+    environment:
+      PORT_OCR: 8002
+    ports:
+      - "8002:8002"
+    networks:
+      - metrology-net
+
+  metrology-engine:
+    build:
+      context: ./services/metrology-engine
+      dockerfile: Dockerfile
+    container_name: service_metrology_engine
+    restart: always
+    environment:
+      PORT_METROLOGY: 8003
+    ports:
+      - "8003:8003"
+    networks:
+      - metrology-net
+
