@@ -179,4 +179,30 @@ services:
     networks:
       - metrology-net
 
+  reporting-notification:
+    build:
+      context: ./services/reporting-notification
+      dockerfile: Dockerfile
+    container_name: service_reporting_notification
+    restart: always
+    environment:
+      PORT_REPORTING: 8005
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: RedisSecret123!
+      MINIO_HOST: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minio_admin
+      MINIO_SECRET_KEY: MinioSecretPassword123!
+    ports:
+      - "8005:8005"
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - metrology-net
+
+
 
