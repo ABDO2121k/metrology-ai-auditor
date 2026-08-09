@@ -39,6 +39,17 @@ const translations: Record<Language, Record<string, string>> = {
     ctaLogin: "Se Connecter Maintenant",
     ctaDashboard: "Ouvrir mon Dashboard",
     
+    // Role Chip & Title Translations
+    role_ADMINISTRATOR: "Administrateur Système",
+    role_TECHNICIAN: "Technicien Étalonneur",
+    role_VALIDATOR: "Responsable Validation Qualité",
+    role_DIRECTOR: "Directeur du Laboratoire",
+
+    name_fati_sadiki: "Fatima-Ezzahrae Sadiki",
+    name_tech_fati: "Technicien Étalonneur",
+    name_val_fati: "Responsable Validation Qualité",
+    name_director_fati: "Directeur du Laboratoire",
+    
     // Stats & Admin Metrics
     statCerts: "Certificats Traités",
     statAccuracy: "Précision Audit",
@@ -110,6 +121,17 @@ const translations: Record<Language, Record<string, string>> = {
     ctaGetStarted: "Open Studio",
     ctaLogin: "Sign In Now",
     ctaDashboard: "Go to Dashboard",
+
+    // Role Chip & Title Translations
+    role_ADMINISTRATOR: "System Administrator",
+    role_TECHNICIAN: "Calibration Technician",
+    role_VALIDATOR: "Quality Validator",
+    role_DIRECTOR: "Laboratory Director",
+
+    name_fati_sadiki: "Fatima-Ezzahrae Sadiki",
+    name_tech_fati: "Calibration Technician",
+    name_val_fati: "Quality Validator Expert",
+    name_director_fati: "Laboratory Director",
     
     // Stats & Admin Metrics
     statCerts: "Certificates Processed",
@@ -182,6 +204,17 @@ const translations: Record<Language, Record<string, string>> = {
     ctaGetStarted: "دخول الاستوديو",
     ctaLogin: "تسجيل الدخول الآن",
     ctaDashboard: "فتح لوحة التحكم",
+
+    // Role Chip & Title Translations
+    role_ADMINISTRATOR: "مسؤول النظام",
+    role_TECHNICIAN: "فني معايرة",
+    role_VALIDATOR: "مسؤول الاعتماد والجودة",
+    role_DIRECTOR: "مدير المختبر",
+
+    name_fati_sadiki: "فاطمة الزهراء صديقي",
+    name_tech_fati: "فني معايرة معتمد",
+    name_val_fati: "خبير الاعتماد والجودة",
+    name_director_fati: "مدير المختبر الرئيسي",
     
     // Stats & Admin Metrics
     statCerts: "شهادة معالجة",

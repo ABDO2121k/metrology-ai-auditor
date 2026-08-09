@@ -140,7 +140,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Users Table */}
+      {/* Users Table with LOCALIZED ROLE CHIPS & USER NAMES */}
       <div className="glass-panel rounded-3xl border border-slate-800 overflow-hidden">
         <div className="p-4 border-b border-slate-800 flex justify-between items-center">
           <span className="text-xs font-bold text-slate-300">{t('adminUserTitle')}</span>
@@ -164,7 +164,7 @@ export default function AdminUsersPage() {
               {users.map((u) => (
                 <tr key={u.id} className="hover:bg-slate-850/50 transition">
                   <td className="p-4 font-bold text-white">
-                    {u.full_name}
+                    {t('name_' + u.username) !== ('name_' + u.username) ? t('name_' + u.username) : u.full_name}
                     <div className="text-[10px] text-slate-400 font-mono">@{u.username}</div>
                   </td>
                   <td className="p-4 text-slate-300 font-mono">{u.email}</td>
@@ -175,7 +175,7 @@ export default function AdminUsersPage() {
                       u.role === 'VALIDATOR' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
                       'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                     }`}>
-                      {u.role}
+                      {t('role_' + u.role)}
                     </span>
                   </td>
                   <td className="p-4">
@@ -251,10 +251,10 @@ export default function AdminUsersPage() {
                   onChange={(e) => setRegForm({ ...regForm, role: e.target.value })}
                   className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white outline-none"
                 >
-                  <option value="TECHNICIAN">TECHNICIAN (Technicien Étalonneur)</option>
-                  <option value="VALIDATOR">VALIDATOR (Responsable Validation)</option>
-                  <option value="DIRECTOR">DIRECTOR (Directeur du Laboratoire)</option>
-                  <option value="ADMINISTRATOR">ADMINISTRATOR (Admin Système)</option>
+                  <option value="TECHNICIAN">TECHNICIAN ({t('role_TECHNICIAN')})</option>
+                  <option value="VALIDATOR">VALIDATOR ({t('role_VALIDATOR')})</option>
+                  <option value="DIRECTOR">DIRECTOR ({t('role_DIRECTOR')})</option>
+                  <option value="ADMINISTRATOR">ADMINISTRATOR ({t('role_ADMINISTRATOR')})</option>
                 </select>
               </div>
 
@@ -274,7 +274,7 @@ export default function AdminUsersPage() {
             <div className="flex items-center gap-2 border-b border-slate-800 pb-2 text-amber-400 font-bold text-sm">
               <ShieldAlert className="w-5 h-5" /> {t('btnOverridePass')}
             </div>
-            <p className="text-xs text-slate-300">Réinitialiser le mot de passe pour <span className="font-bold text-white">{targetUser.full_name}</span> (@{targetUser.username}):</p>
+            <p className="text-xs text-slate-300">Réinitialiser le mot de passe pour <span className="font-bold text-white">{t('name_' + targetUser.username) !== ('name_' + targetUser.username) ? t('name_' + targetUser.username) : targetUser.full_name}</span> (@{targetUser.username}):</p>
             <form onSubmit={handleAdminResetPassword} className="space-y-3 text-xs">
               <div>
                 <label className="text-slate-400">Nouveau Mot de Passe Forcé</label>

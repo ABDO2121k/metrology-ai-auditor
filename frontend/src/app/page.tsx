@@ -217,7 +217,7 @@ export default function HomePage() {
 
           </div>
 
-          {/* Real Users Breakdown Table for Admin */}
+          {/* Real Users Breakdown Table for Admin with LOCALIZED ROLE CHIPS & NAMES */}
           <div className="glass-panel rounded-3xl border border-slate-800 p-6 space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -231,10 +231,10 @@ export default function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {realUsers.slice(0, 4).map((u) => (
                 <div key={u.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1">
-                  <div className="font-bold text-white text-xs">{u.full_name}</div>
+                  <div className="font-bold text-white text-xs">{t('name_' + u.username) !== ('name_' + u.username) ? t('name_' + u.username) : u.full_name}</div>
                   <div className="text-[10px] text-slate-400 font-mono">@{u.username} ({u.email})</div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold inline-block bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                    {u.role}
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-bold inline-block bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    {t('role_' + u.role)}
                   </span>
                 </div>
               ))}
