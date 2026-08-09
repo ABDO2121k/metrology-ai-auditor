@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 import SelfServicePasswordModal from '@/components/SelfServicePasswordModal';
+import AuthGuard from '@/components/AuthGuard';
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -274,9 +275,9 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
           </aside>
         )}
 
-        {/* Main Content Workspace */}
+        {/* Main Content Workspace — wrapped with AuthGuard */}
         <main className="flex-1 p-6 max-w-[1600px] w-full mx-auto">
-          {children}
+          <AuthGuard>{children}</AuthGuard>
         </main>
 
       </div>

@@ -126,7 +126,42 @@ const translations: Record<Language, Record<string, string>> = {
     dashboardQuickLinks: "Accès Rapides",
     dashboardGoTo: "Accéder →",
     featuresTitle: "Fonctionnalités Clés du Système",
-    featuresSubtitle: "Intelligence artificielle et métrologie au service de l'audit ISO 17025"
+    featuresSubtitle: "Intelligence artificielle et métrologie au service de l'audit ISO 17025",
+
+    // Upload page
+    uploadSubtitle: "Déposez vos certificats d'étalonnage PDF pour traitement OCR et validation ISO 17025",
+    uploadDropTitle: "Glissez-déposez vos fichiers PDF ici",
+    uploadDropSub: "Cliquez ou glissez vos fichiers PDF (max 50 Mo par fichier)",
+    uploadSHA256Check: "Vérification SHA-256 anti-doublons",
+    uploadAllBtn: "Envoyer tout",
+    uploadClearDone: "Effacer terminés",
+    uploadOk: "Uploadés",
+    uploadFailed: "Erreurs",
+    uploadUploading: "Envoi en cours",
+    uploadQueue: "File d'attente",
+    uploadStatusPendingOCR: "En attente OCR → Traitement automatique",
+    uploadStatusDuplicate: "Doublon rejeté — SHA-256 déjà présent",
+    uploadStatusQueued: "En file d'attente",
+    uploadDuplicateMsg: "Doublon détecté — Hash",
+    uploadEmptyState: "Aucun fichier dans la file d'attente",
+
+    // Certificates page
+    certsSubtitle: "Registre de tous les certificats d'étalonnage soumis à la plateforme",
+    certsTotal: "Total Certificats",
+    certsConforme: "Conformes",
+    certsPending: "En Attente OCR",
+    certsAnomaly: "Anomalies",
+    certsSearch: "Rechercher par numéro ou nom de fichier...",
+    certsFilterAll: "Tous les statuts",
+    certsLoading: "Chargement des certificats...",
+    certsEmpty: "Aucun certificat trouvé",
+    certsEmptySub: "Importez vos premiers certificats PDF via le Studio d'Upload",
+    certColNumber: "N° Certificat",
+    certColFilename: "Fichier Original",
+    certColStatus: "Statut",
+    certColHash: "SHA-256",
+    certColDate: "Date Upload",
+    certViewBtn: "Voir détails"
   },
   en: {
     // Topbar & Nav
@@ -241,7 +276,42 @@ const translations: Record<Language, Record<string, string>> = {
     dashboardQuickLinks: "Quick Access",
     dashboardGoTo: "Go →",
     featuresTitle: "Key System Features",
-    featuresSubtitle: "AI and metrology at the service of ISO 17025 audit automation"
+    featuresSubtitle: "AI and metrology at the service of ISO 17025 audit automation",
+
+    // Upload page
+    uploadSubtitle: "Drop your calibration certificate PDFs for OCR processing and ISO 17025 validation",
+    uploadDropTitle: "Drag and drop your PDF files here",
+    uploadDropSub: "Click or drag PDF files (max 50 MB per file)",
+    uploadSHA256Check: "SHA-256 anti-duplicate check",
+    uploadAllBtn: "Upload All",
+    uploadClearDone: "Clear Completed",
+    uploadOk: "Uploaded",
+    uploadFailed: "Errors",
+    uploadUploading: "Uploading",
+    uploadQueue: "Upload Queue",
+    uploadStatusPendingOCR: "Pending OCR → Automatic processing",
+    uploadStatusDuplicate: "Duplicate rejected — SHA-256 already exists",
+    uploadStatusQueued: "Queued",
+    uploadDuplicateMsg: "Duplicate detected — Hash",
+    uploadEmptyState: "No files in the upload queue",
+
+    // Certificates page
+    certsSubtitle: "Registry of all calibration certificates submitted to the platform",
+    certsTotal: "Total Certificates",
+    certsConforme: "Compliant",
+    certsPending: "Pending OCR",
+    certsAnomaly: "Anomalies",
+    certsSearch: "Search by certificate number or filename...",
+    certsFilterAll: "All statuses",
+    certsLoading: "Loading certificates...",
+    certsEmpty: "No certificates found",
+    certsEmptySub: "Upload your first PDF certificates via the Upload Studio",
+    certColNumber: "Certificate No.",
+    certColFilename: "Original File",
+    certColStatus: "Status",
+    certColHash: "SHA-256",
+    certColDate: "Upload Date",
+    certViewBtn: "View details"
   },
   ar: {
     // Topbar & Nav
@@ -356,7 +426,42 @@ const translations: Record<Language, Record<string, string>> = {
     dashboardQuickLinks: "وصول سريع",
     dashboardGoTo: "اذهب →",
     featuresTitle: "الميزات الرئيسية للنظام",
-    featuresSubtitle: "الذكاء الاصطناعي والمترولوجيا في خدمة التدقيق وفق ISO 17025"
+    featuresSubtitle: "الذكاء الاصطناعي والمترولوجيا في خدمة التدقيق وفق ISO 17025",
+
+    // Upload page
+    uploadSubtitle: "ألق ملفات PDF لشهادات المعايرة لمعالجة OCR والتحقق من ISO 17025",
+    uploadDropTitle: "اسحب ملفات PDF وألقها هنا",
+    uploadDropSub: "انقر أو اسحب ملفات PDF (الحجم الأقصى 50 ميغابايت لكل ملف)",
+    uploadSHA256Check: "فحص SHA-256 لمنع التكرار",
+    uploadAllBtn: "رفع الكل",
+    uploadClearDone: "مسح المكتملة",
+    uploadOk: "مرفوعة",
+    uploadFailed: "أخطاء",
+    uploadUploading: "جاري الرفع",
+    uploadQueue: "قائمة الرفع",
+    uploadStatusPendingOCR: "في انتظار OCR → المعالجة التلقائية",
+    uploadStatusDuplicate: "تكرار مرفوض — SHA-256 موجود مسبقاً",
+    uploadStatusQueued: "في قائمة الانتظار",
+    uploadDuplicateMsg: "تكرار مكتشف — البصمة",
+    uploadEmptyState: "لا توجد ملفات في قائمة الرفع",
+
+    // Certificates page
+    certsSubtitle: "سجل جميع شهادات المعايرة المقدمة إلى المنصة",
+    certsTotal: "إجمالي الشهادات",
+    certsConforme: "مطابقة",
+    certsPending: "في انتظار OCR",
+    certsAnomaly: "شذوذات",
+    certsSearch: "بحث برقم الشهادة أو اسم الملف...",
+    certsFilterAll: "جميع الحالات",
+    certsLoading: "جاري تحميل الشهادات...",
+    certsEmpty: "لا توجد شهادات",
+    certsEmptySub: "ارفع أول شهادات PDF عبر استوديو الرفع",
+    certColNumber: "رقم الشهادة",
+    certColFilename: "الملف الأصلي",
+    certColStatus: "الحالة",
+    certColHash: "SHA-256",
+    certColDate: "تاريخ الرفع",
+    certViewBtn: "عرض التفاصيل"
   }
 };
 
