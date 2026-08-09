@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Lock, X, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react';
+import PasswordInput from '@/components/PasswordInput';
 
 interface Props {
   isOpen: boolean;
@@ -94,47 +95,29 @@ export default function SelfServicePasswordModal({ isOpen, onClose, token }: Pro
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div className="space-y-1">
             <label className="text-slate-400 font-semibold">Mot de Passe Actuel</label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="password"
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white outline-none focus:border-cyan-500"
-              />
-            </div>
+            <PasswordInput
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
           </div>
 
           <div className="space-y-1">
             <label className="text-slate-400 font-semibold">Nouveau Mot de Passe</label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white outline-none focus:border-cyan-500"
-              />
-            </div>
+            <PasswordInput
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
           </div>
 
           <div className="space-y-1">
             <label className="text-slate-400 font-semibold">Confirmer Nouveau Mot de Passe</label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white outline-none focus:border-cyan-500"
-              />
-            </div>
+            <PasswordInput
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
           </div>
 
-          <div className="pt-2 flex justify-end space-x-3">
+          <div className="pt-2 flex justify-end space-x-3 rtl:space-x-reverse">
             <button
               type="button"
               onClick={onClose}

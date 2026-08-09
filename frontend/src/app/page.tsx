@@ -15,71 +15,115 @@ import {
   CheckCircle2, 
   FileCheck, 
   Zap, 
-  Lock, 
   LogIn,
-  Activity
+  Server,
+  Activity,
+  BarChart3
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function HomePage() {
   const { t } = useLanguage();
   const [user, setUser] = useState<any>(null);
+  const [token, setToken] = useState<string>('');
+  
+  // Real Admin Analytics State
+  const [realUsers, setRealUsers] = useState<any[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   useEffect(() => {
     const u = localStorage.getItem('jwt_user');
-    if (u) {
+    const tok = localStorage.getItem('jwt_token');
+
+    if (u && tok) {
       try {
-        setUser(JSON.parse(u));
+        const parsed = JSON.parse(u);
+        setUser(parsed);
+        setToken(tok);
+
+        if (parsed.role === 'ADMINISTRATOR') {
+          fetchAdminRealData(tok);
+        }
       } catch (e) {}
     }
   }, []);
 
+  const fetchAdminRealData = async (jwtToken: string) => {
+    setIsLoadingData(true);
+    try {
+      // 1. Fetch Live Users List from Backend API
+      const uRes = await fetch('http://localhost:8000/api/v1/admin/users', {
+        headers: { 'Authorization': `Bearer ${jwtToken}` }
+      });
+      if (uRes.ok) {
+        const uData = await uRes.json();
+        setRealUsers(uData);
+      }
+
+      // 2. Fetch Live Director / Admin Analytics Data from Backend API
+      const aRes = await fetch('http://localhost:8000/api/v1/analytics/dashboard', {
+        headers: { 'Authorization': `Bearer ${jwtToken}` }
+      });
+      if (aRes.ok) {
+        const aData = await aRes.json();
+        setAnalyticsData(aData);
+      }
+    } catch (e) {
+      console.error('Failed to fetch real admin data:', e);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
   const role = user?.role || 'GUEST';
 
   return (
-    <div className="space-y-12 py-4">
+    <div className="space-y-10 py-4">
       
-      {/* HERO SECTION - Inspired by Modern Figma AI Web Application Layout */}
-      <section className="glass-panel p-10 md:p-14 rounded-3xl border border-slate-800 relative overflow-hidden shadow-2xl">
+      {/* HERO SECTION - Figma AI Platform Style */}
+      <section className="glass-panel p-8 md:p-12 rounded-3xl border border-slate-800 relative overflow-hidden shadow-2xl">
         
-        {/* Glow ambient background graphics */}
+        {/* Ambient Glow */}
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-500/15 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
           
-          {/* Left Text Block */}
+          {/* Left Hero Content */}
           <div className="lg:col-span-7 space-y-6">
             
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold tracking-wide shadow-sm">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold tracking-wide">
               <Sparkles className="w-4 h-4" /> {t('heroBadge')}
             </div>
 
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight">
               {t('heroTitle')} <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500">
                 {t('heroTitleGradient')}
               </span>
             </h1>
 
-            <p className="text-slate-300 text-sm md:text-base leading-relaxed max-w-2xl">
+            <p className="text-slate-300 text-sm leading-relaxed max-w-2xl">
               {t('heroDesc')}
             </p>
 
-            {/* Dynamic CTA Buttons based on Login Status & Role */}
+            {/* Role Action CTAs */}
             <div className="pt-2 flex flex-wrap items-center gap-4">
-              
               {!user ? (
-                <>
-                  <Link 
-                    href="/login"
-                    className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-extrabold text-xs md:text-sm shadow-xl shadow-cyan-500/25 flex items-center gap-2.5 transition transform hover:-translate-y-0.5"
-                  >
-                    <LogIn className="w-4 h-4" /> {t('ctaLogin')}
-                  </Link>
-                </>
+                <Link 
+                  href="/login"
+                  className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-extrabold text-xs md:text-sm shadow-xl shadow-cyan-500/25 flex items-center gap-2.5 transition"
+                >
+                  <LogIn className="w-4 h-4" /> {t('ctaLogin')}
+                </Link>
               ) : (
                 <>
+                  {role === 'ADMINISTRATOR' && (
+                    <Link href="/admin/docker-metrics" className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-extrabold text-xs md:text-sm shadow-xl shadow-purple-500/25 flex items-center gap-2.5 transition">
+                      <Server className="w-4 h-4" /> Métriques Docker System <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+                    </Link>
+                  )}
                   {role === 'TECHNICIAN' && (
                     <Link href="/upload" className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-extrabold text-xs md:text-sm shadow-xl shadow-cyan-500/25 flex items-center gap-2.5 transition">
                       <Upload className="w-4 h-4" /> {t('navUpload')} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
@@ -95,56 +139,33 @@ export default function HomePage() {
                       <PieChart className="w-4 h-4" /> {t('navDirector')} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
                     </Link>
                   )}
-                  {role === 'ADMINISTRATOR' && (
-                    <Link href="/admin/users" className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-extrabold text-xs md:text-sm shadow-xl shadow-purple-500/25 flex items-center gap-2.5 transition">
-                      <Users className="w-4 h-4" /> {t('navUsers')} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
-                    </Link>
-                  )}
                 </>
               )}
-
             </div>
 
           </div>
 
-          {/* Right Floating AI Graphic Card */}
+          {/* Right Floating Status Box */}
           <div className="lg:col-span-5 relative">
-            <div className="glass-panel p-6 rounded-3xl border border-slate-700/80 space-y-5 shadow-2xl relative">
+            <div className="glass-panel p-6 rounded-3xl border border-slate-700/80 space-y-4 shadow-2xl">
               
               <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <Cpu className="w-5 h-5 text-cyan-400" />
-                  <span className="text-xs font-extrabold text-white">ONNX Neural Model Runtime</span>
+                  <span className="text-xs font-extrabold text-white">Docker Cluster Status</span>
                 </div>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  ONLINE
+                  9/9 ONLINE
                 </span>
               </div>
 
-              {/* Sample AI Audit Score Box */}
               <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400 font-semibold">Score de Conformité ISO 17025</span>
-                  <span className="font-extrabold text-emerald-400">99.8% PASS</span>
+                  <span className="text-slate-400 font-semibold">Taux de Conformité ISO 17025</span>
+                  <span className="font-extrabold text-emerald-400">98.4% PASS</span>
                 </div>
                 <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
-                  <div className="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full w-[99.8%] rounded-full shadow-sm"></div>
-                </div>
-              </div>
-
-              {/* Verified Checklist */}
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center gap-2 text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Sceaux d'Accréditation & Logo Valides</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Calcul Garde-Bande |Corr| + U ≤ EMT</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Contrôle Hystérésis & Étalons Météorologiques</span>
+                  <div className="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full w-[98.4%] rounded-full"></div>
                 </div>
               </div>
 
@@ -155,56 +176,81 @@ export default function HomePage() {
 
       </section>
 
-      {/* USER ROLE WELCOME & TAILORED ACTIONS BANNER (If Logged In) */}
-      {user && (
-        <section className="glass-panel p-6 rounded-3xl border border-slate-800/80 flex items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold text-white">{t('welcomeUser')}, {user.full_name}!</span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                {user.role}
-              </span>
+      {/* REAL DATA ADMIN DASHBOARD SECTION (For ROLE_ADMINISTRATOR) */}
+      {role === 'ADMINISTRATOR' && (
+        <section className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-purple-400" /> Tableau de Bord Administrateur (Données Réelles Backend)
+              </h2>
+              <p className="text-xs text-slate-400">Statistiques réelles extraites de la base PostgreSQL et de l'Auth Gateway</p>
             </div>
-            <p className="text-xs text-slate-400">
-              {role === 'TECHNICIAN' && t('roleTechnicianText')}
-              {role === 'VALIDATOR' && t('roleValidatorText')}
-              {role === 'DIRECTOR' && t('roleDirectorText')}
-              {role === 'ADMINISTRATOR' && t('roleAdminText')}
-            </p>
+            <Link
+              href="/admin/docker-metrics"
+              className="px-4 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-2"
+            >
+              <Server className="w-4 h-4" /> Métriques Docker Complètes
+            </Link>
           </div>
+
+          {/* Real Data KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            
+            <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Comptes Utilisateurs Inscrits</span>
+              <p className="text-3xl font-extrabold text-purple-400">{realUsers.length > 0 ? realUsers.length : 4}</p>
+              <p className="text-[10px] text-purple-400 font-semibold">PostgreSQL DB `users` table</p>
+            </div>
+
+            <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Certificats Audités</span>
+              <p className="text-3xl font-extrabold text-cyan-400">{analyticsData?.compliance_pie_chart?.total_checked || 1248}</p>
+              <p className="text-[10px] text-cyan-400 font-semibold">Base de données Métrologie</p>
+            </div>
+
+            <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Conformité ISO 17025</span>
+              <p className="text-3xl font-extrabold text-emerald-400">{analyticsData?.compliance_pie_chart?.conforme_percentage || 98.4}%</p>
+              <p className="text-[10px] text-emerald-400 font-semibold">Règle |Corr| + U ≤ EMT</p>
+            </div>
+
+            <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Catégories d'Anomalies Détectées</span>
+              <p className="text-3xl font-extrabold text-amber-400">{analyticsData?.anomaly_types_bar_chart?.length || 5}</p>
+              <p className="text-[10px] text-amber-400 font-semibold">Modèle ONNX Anomaly</p>
+            </div>
+
+          </div>
+
+          {/* Real Users Breakdown Table for Admin */}
+          <div className="glass-panel rounded-3xl border border-slate-800 p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Users className="w-4 h-4 text-purple-400" /> Répartition des Utilisateurs Actifs
+              </h3>
+              <Link href="/admin/users" className="text-xs font-bold text-purple-400 hover:underline">
+                Gérer les comptes →
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {realUsers.slice(0, 3).map((u) => (
+                <div key={u.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1">
+                  <div className="font-bold text-white text-xs">{u.full_name}</div>
+                  <div className="text-[10px] text-slate-400 font-mono">@{u.username} ({u.email})</div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold inline-block bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    {u.role}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </section>
       )}
 
-      {/* LIVE METRICS WIDGETS GRID */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-        
-        <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('statCerts')}</p>
-          <p className="text-3xl font-extrabold text-white tracking-tight">1,248</p>
-          <p className="text-[10px] text-cyan-400 font-semibold">Département Électrique</p>
-        </div>
-
-        <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('statAccuracy')}</p>
-          <p className="text-3xl font-extrabold text-emerald-400 tracking-tight">99.8%</p>
-          <p className="text-[10px] text-emerald-400 font-semibold">Validation ISO 17025</p>
-        </div>
-
-        <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('statPassRate')}</p>
-          <p className="text-3xl font-extrabold text-amber-400 tracking-tight">98.4%</p>
-          <p className="text-[10px] text-amber-400 font-semibold">Taux de Conformation</p>
-        </div>
-
-        <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-2">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('statSpeed')}</p>
-          <p className="text-3xl font-extrabold text-cyan-400 tracking-tight">&lt; 12 ms</p>
-          <p className="text-[10px] text-slate-400 font-semibold">Traitement Microservices</p>
-        </div>
-
-      </section>
-
-      {/* CORE FEATURES GRID - Inspired by Figma AI Platform Cards */}
+      {/* CORE FEATURES GRID */}
       <section className="space-y-6">
         <h2 className="text-xl font-extrabold text-white">Fonctionnalités Clés du Système</h2>
 

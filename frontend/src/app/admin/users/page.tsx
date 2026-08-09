@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, UserPlus, KeyRound, CheckCircle2, AlertCircle, RefreshCw, Lock, ShieldAlert } from 'lucide-react';
+import { Users, UserPlus, KeyRound, CheckCircle2, AlertCircle, RefreshCw, ShieldAlert } from 'lucide-react';
+import PasswordInput from '@/components/PasswordInput';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -147,14 +148,14 @@ export default function AdminUsersPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left rtl:text-right text-xs">
             <thead className="bg-slate-950/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
               <tr>
                 <th className="p-4">Utilisateur</th>
                 <th className="p-4">Email</th>
                 <th className="p-4">Rôle</th>
                 <th className="p-4">Statut</th>
-                <th className="p-4 text-right">Actions Admin</th>
+                <th className="p-4 text-right rtl:text-left">Actions Admin</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
@@ -180,15 +181,15 @@ export default function AdminUsersPage() {
                       Actif
                     </span>
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="p-4 text-right rtl:text-left">
                     <button
                       onClick={() => {
                         setTargetUser(u);
                         setIsResetOpen(true);
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-semibold flex items-center gap-1.5 ml-auto"
+                      className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-semibold flex items-center gap-1.5 ml-auto rtl:mr-auto rtl:ml-0"
                     >
-                      <KeyRound className="w-3.5 h-3.5" /> Force Reset Mot de Passe
+                      <KeyRound className="w-3.5 h-3.5" /> Override Admin Mot de Passe
                     </button>
                   </td>
                 </tr>
@@ -236,12 +237,9 @@ export default function AdminUsersPage() {
               </div>
               <div>
                 <label className="text-slate-400">Mot de Passe Initial</label>
-                <input
-                  type="password"
-                  required
+                <PasswordInput
                   value={regForm.password}
                   onChange={(e) => setRegForm({ ...regForm, password: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white outline-none"
                 />
               </div>
               <div>
@@ -258,7 +256,7 @@ export default function AdminUsersPage() {
                 </select>
               </div>
 
-              <div className="pt-2 flex justify-end space-x-2">
+              <div className="pt-2 flex justify-end space-x-2 rtl:space-x-reverse">
                 <button type="button" onClick={() => setIsRegisterOpen(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300">Annuler</button>
                 <button type="submit" className="px-4 py-2 rounded-xl bg-purple-600 text-white font-bold">Créer Compte</button>
               </div>
@@ -278,17 +276,14 @@ export default function AdminUsersPage() {
             <form onSubmit={handleAdminResetPassword} className="space-y-3 text-xs">
               <div>
                 <label className="text-slate-400">Nouveau Mot de Passe Forcé</label>
-                <input
-                  type="password"
-                  required
+                <PasswordInput
                   value={newPasswordOverride}
                   onChange={(e) => setNewPasswordOverride(e.target.value)}
                   placeholder="Saisissez le nouveau mot de passe..."
-                  className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white outline-none"
                 />
               </div>
 
-              <div className="pt-2 flex justify-end space-x-2">
+              <div className="pt-2 flex justify-end space-x-2 rtl:space-x-reverse">
                 <button type="button" onClick={() => setIsResetOpen(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300">Annuler</button>
                 <button type="submit" className="px-4 py-2 rounded-xl bg-amber-600 text-white font-bold">Forcer la Réinitialisation</button>
               </div>

@@ -17,9 +17,10 @@ import {
   LogOut, 
   PieChart, 
   Globe,
-  LogIn
+  LogIn,
+  Server
 } from 'lucide-react';
-import { LanguageProvider, useLanguage, Language } from '@/context/LanguageContext';
+import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 import SelfServicePasswordModal from '@/components/SelfServicePasswordModal';
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
@@ -150,7 +151,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Main Container with Dynamic Sidebar */}
+      {/* Main Container with STRICTLY ROLE-FILTERED Sidebar */}
       <div className="flex-1 flex">
         
         {/* Dynamic Sidebar (Hidden on Login page) */}
@@ -169,8 +170,8 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
 
-            {/* TECHNICIAN Role Sidebar Links */}
-            {(role === 'TECHNICIAN' || role === 'ADMINISTRATOR') && (
+            {/* STRICT ROLE FILTERING: TECHNICIAN Portal Links */}
+            {role === 'TECHNICIAN' && (
               <div className="space-y-1">
                 <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Technician Portal</p>
                 <Link
@@ -181,11 +182,19 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                 >
                   <Upload className="w-4 h-4 text-cyan-400" /> {t('navUpload')}
                 </Link>
+                <Link
+                  href="/certificates"
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
+                    pathname === '/certificates' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                  }`}
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" /> {t('navCerts')}
+                </Link>
               </div>
             )}
 
-            {/* VALIDATOR Role Sidebar Links */}
-            {(role === 'VALIDATOR' || role === 'ADMINISTRATOR') && (
+            {/* STRICT ROLE FILTERING: VALIDATOR Portal Links */}
+            {role === 'VALIDATOR' && (
               <div className="space-y-1">
                 <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Validator Portal</p>
                 <Link
@@ -204,11 +213,19 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                 >
                   <Layers className="w-4 h-4 text-cyan-400" /> {t('nav5Certs')}
                 </Link>
+                <Link
+                  href="/reports"
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
+                    pathname === '/reports' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                  }`}
+                >
+                  <FileCheck className="w-4 h-4 text-cyan-400" /> {t('navReports')}
+                </Link>
               </div>
             )}
 
-            {/* DIRECTOR Role Sidebar Links */}
-            {(role === 'DIRECTOR' || role === 'ADMINISTRATOR') && (
+            {/* STRICT ROLE FILTERING: DIRECTOR Portal Links */}
+            {role === 'DIRECTOR' && (
               <div className="space-y-1">
                 <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Director Portal</p>
                 <Link
@@ -230,7 +247,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               </div>
             )}
 
-            {/* ADMINISTRATOR Role Sidebar Links */}
+            {/* STRICT ROLE FILTERING: ADMINISTRATOR Portal Links ONLY */}
             {role === 'ADMINISTRATOR' && (
               <div className="space-y-1">
                 <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Admin Portal</p>
@@ -243,12 +260,12 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                   <Users className="w-4 h-4 text-purple-400" /> {t('navUsers')}
                 </Link>
                 <Link
-                  href="/admin/health"
+                  href="/admin/docker-metrics"
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                    pathname === '/admin/health' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                    pathname === '/admin/docker-metrics' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
                   }`}
                 >
-                  <Activity className="w-4 h-4 text-emerald-400" /> {t('navHealth')}
+                  <Server className="w-4 h-4 text-cyan-400" /> Métriques Docker
                 </Link>
               </div>
             )}
