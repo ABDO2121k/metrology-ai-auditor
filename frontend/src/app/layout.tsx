@@ -12,13 +12,12 @@ import {
   Layers, 
   FileCheck, 
   Users, 
-  Activity, 
+  Server,
   KeyRound, 
   LogOut, 
   PieChart, 
   Globe,
-  LogIn,
-  Server
+  LogIn
 } from 'lucide-react';
 import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 import SelfServicePasswordModal from '@/components/SelfServicePasswordModal';
@@ -142,14 +141,22 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               </button>
             </div>
           ) : (
-            <Link 
-              href="/login"
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 flex items-center gap-2 transition"
-            >
-              <LogIn className="w-4 h-4" /> {t('loginBtn')}
-            </Link>
+            <div className="flex items-center space-x-3 rtl:space-x-reverse">
+              <Link
+                href="/dashboard"
+                className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/30 transition"
+                title="Go to Dashboard"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+              </Link>
+              <Link 
+                href="/login"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 flex items-center gap-2 transition"
+              >
+                <LogIn className="w-4 h-4" /> {t('loginBtn')}
+              </Link>
+            </div>
           )}
-
         </div>
       </header>
 

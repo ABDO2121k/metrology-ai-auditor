@@ -4,6 +4,111 @@ import fitz  # PyMuPDF
 from typing import List, Dict, Any, Optional
 from schemas import ExtractedCertificateData, MeasurementRow
 
+import json
+from datetime import datetime
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
+def get_openai_client():
+    """Initialize OpenAI client with API key from environment"""
+    if not OPENAI_AVAILABLE:
+        return None
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    return OpenAI(api_key=api_key)
+
+def validate_with_ai(extracted_data: ExtractedCertificateData) -> Optional[Dict]:
+    """
+    Use OpenAI to validate OCR extracted data for:
+    - Data quality and completeness
+    - Measurement validity (check for anomalies)
+    - Certificate authenticity indicators
+    - Overall compliance with metrological standards
+    """
+    client = get_openai_client()
+    if not client:
+        return None
+    
+    try:
+        # Prepare validation prompt
+        validation_prompt = f"""
+Analyze the following OCR-extracted metrological calibration certificate data and provide quality validation scores:
+
+Certificate Details:
+- Certificate Number: {extracted_data.certificate_number}
+- Client: {extracted_data.client_name}
+- Instrument: {extracted_data.instrument_name} (Serial: {extracted_data.instrument_serial})
+- Issue Date: {extracted_data.issue_date}
+- Calibration Date: {extracted_data.calibration_date}
+- Next Calibration: {extracted_data.next_calibration_date}
+- Has Stamp/Logo: {extracted_data.has_stamp_logo}
+- Has Signature: {extracted_data.has_signature}
+- Ambient Conditions: Temp={extracted_data.ambient_temperature}, Humidity={extracted_data.ambient_humidity}
+
+Measurements ({len(extracted_data.measurements)} points):
+{json.dumps([m.dict() for m in extracted_data.measurements[:5]], indent=2)}
+
+Validation Required:
+1. Data Quality Score (0-100): Assess completeness and format correctness
+2. Measurement Validity Score (0-100): Check for anomalies, logical errors, uncertainty bounds
+3. Confidence Score (0-100): Assess OCR extraction accuracy and certificate authenticity
+4. List any CRITICAL ISSUES (errors that invalidate the certificate)
+5. List any WARNINGS (data quality issues)
+6. List any SUGGESTIONS for improvement
+
+Return JSON:
+{{
+  "confidence_score": <0-100>,
+  "data_quality_score": <0-100>,
+  "measurement_validity_score": <0-100>,
+  "critical_issues": [<list of critical issues>],
+  "warnings": [<list of warnings>],
+  "suggestions": [<list of suggestions>],
+  "validation_passed": <true/false>,
+  "analysis_notes": "<brief explanation>"
+}}
+"""
+        
+        response = client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[
+                {"role": "system", "content": "You are a metrological compliance expert. Analyze calibration certificates for data quality and validity."},
+                {"role": "user", "content": validation_prompt}
+            ],
+            temperature=0.3,
+            max_tokens=1024
+        )
+        
+        # Parse response
+        response_text = response.choices[0].message.content
+        
+        # Extract JSON from response
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if not json_match:
+            return None
+            
+        validation_result = json.loads(json_match.group())
+        
+        # Normalize scores to 0-1 range
+        validation_result['confidence_score'] = min(100, max(0, validation_result.get('confidence_score', 50))) / 100.0
+        validation_result['data_quality_score'] = min(100, max(0, validation_result.get('data_quality_score', 50))) / 100.0
+        validation_result['measurement_validity_score'] = min(100, max(0, validation_result.get('measurement_validity_score', 50))) / 100.0
+        validation_result['validation_passed'] = validation_result.get('validation_passed', False)
+        validation_result['validation_timestamp'] = datetime.utcnow().isoformat()
+        validation_result['critical_issues'] = validation_result.get('critical_issues', [])
+        validation_result['warnings'] = validation_result.get('warnings', [])
+        validation_result['suggestions'] = validation_result.get('suggestions', [])
+        
+        return validation_result
+        
+    except Exception as e:
+        print(f"AI validation failed: {str(e)}")
+        return None
+
 # Helper to normalize French dates to YYYY-MM-DD
 MONTH_MAP = {
     'janvier': '01', 'fevrier': '02', 'février': '02', 'mars': '03',
@@ -179,7 +284,7 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
             )
         ]
 
-    return ExtractedCertificateData(
+        extracted = ExtractedCertificateData(
         certificate_id=certificate_id,
         certificate_number=cert_number,
         client_name=client_name,
@@ -197,4 +302,13 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
         has_stamp_logo=has_stamp,
         has_signature=has_signature,
         measurements=measurements
-    )
+
+        )
+    
+        # Run AI validation
+        validation_result = validate_with_ai(extracted)
+        if validation_result:
+            from schemas import AIValidationResult
+            extracted.ai_validation = AIValidationResult(**validation_result)
+    
+        return extracted

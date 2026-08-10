@@ -17,6 +17,17 @@ class MeasurementRow(BaseModel):
     uncertainty_u: float
     emt_limit: float
 
+class AIValidationResult(BaseModel):
+     """AI validation metrics for OCR extracted data"""
+     confidence_score: float  # 0.0 to 1.0
+     data_quality_score: float  # 0.0 to 1.0
+     measurement_validity_score: float  # 0.0 to 1.0
+     critical_issues: List[str] = []
+     warnings: List[str] = []
+     suggestions: List[str] = []
+     validation_passed: bool
+     validation_timestamp: str
+
 class ExtractedCertificateData(BaseModel):
     certificate_id: str
     certificate_number: str
@@ -35,3 +46,4 @@ class ExtractedCertificateData(BaseModel):
     has_stamp_logo: bool
     has_signature: bool
     measurements: List[MeasurementRow]
+     ai_validation: Optional[AIValidationResult] = None

@@ -33,6 +33,7 @@ type ocrExtractedData struct {
 	NextCalibrationDate  string `json:"next_calibration_date"`
 	AmbientTemperature   string `json:"ambient_temperature"`
 	AmbientHumidity      string `json:"ambient_humidity"`
+	AIValidation         map[string]interface{} `json:"ai_validation"`
 }
 
 func UploadCertificate(c *fiber.Ctx) error {
@@ -117,7 +118,7 @@ func UploadCertificate(c *fiber.Ctx) error {
 		OriginalFilename:  fileHeader.Filename,
 		FilePathS3:        s3Path,
 		FileHashSHA256:    hashString,
-		Status:            "PENDING_OCR",
+		Status:            "OCR_PROCESSING",
 		UploadedBy:        uploadedBy,
 	}
 
@@ -128,8 +129,14 @@ func UploadCertificate(c *fiber.Ctx) error {
 	// 5. Trigger OCR enrichment and persist extracted metadata
 	if extracted, err := runOCRExtraction(certRecord.ID, certRecord.FilePathS3); err != nil {
 		log.Printf("OCR extraction failed for certificate %s: %v", certRecord.ID, err)
-	} else {
-		certRecord.Status = "PROCESSING"
+		// Keep status as OCR_PROCESSING on error for retry
+		certRecord.Status = "OCR_PROCESSING"
+		if err := services.DB.Save(&certRecord).Error; err != nil {
+			log.Printf("Failed to save OCR error state: %v", err)
+		}
+	} else if extracted != nil {
+		// OCR succeeded - update with extracted data and set to OCR_COMPLETED
+		certRecord.Status = "OCR_COMPLETED"
 		certRecord.ClientName = extracted.ClientName
 		certRecord.InstrumentName = extracted.InstrumentName
 		certRecord.InstrumentSerial = extracted.InstrumentSerial
@@ -172,10 +179,10 @@ func UploadCertificate(c *fiber.Ctx) error {
 		"hash":           hashString,
 	}
 	services.PublishEvent("certificate:uploaded", eventPayload)
-	if certRecord.Status == "PROCESSING" {
+	if certRecord.Status == "OCR_COMPLETED" {
 		services.PublishEvent("certificate:processed", map[string]interface{}{
 			"certificate_id": certRecord.ID,
-			"status":         certRecord.Status,
+			"status":         "OCR_COMPLETED",
 		})
 	}
 
