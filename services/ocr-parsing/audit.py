@@ -268,8 +268,26 @@ def audit_pages(
     return True
 
 
-def audit_visual(outcome: AuditOutcome, has_stamp: bool, has_signature: bool) -> None:
-    if not has_stamp:
-        outcome.block("Accreditation stamp / laboratory seal not detected")
-    if not has_signature:
-        outcome.block("Validation signature not detected")
+def audit_visual(outcome: AuditOutcome, stamp_status: str, signature_status: str) -> None:
+    """Rule on the applied marks, distinguishing absent from unverifiable.
+
+    Blocking on ABSENT is correct: a certificate issued without a cachet is not
+    valid. Blocking on NOT_VERIFIABLE would fail every greyscale scan, and
+    passing it would wave through exactly the documents nobody checked - so it
+    raises a warning that routes the certificate to a human instead.
+    """
+    if stamp_status == "ABSENT":
+        outcome.block("Validation cachet / laboratory seal not present on the document")
+    elif stamp_status != "PRESENT":
+        outcome.warn(
+            "Validation cachet could not be verified automatically - "
+            "confirm it visually before validating"
+        )
+
+    if signature_status == "ABSENT":
+        outcome.block("Validation signature not present on the document")
+    elif signature_status != "PRESENT":
+        outcome.warn(
+            "Signature could not be verified automatically - "
+            "confirm it visually before validating"
+        )

@@ -234,6 +234,7 @@ export default function CertificatesPage() {
                 <th className="p-4">{t('certColNumber')}</th>
                 <th className="p-4">{t('certColClient')}</th>
                 <th className="p-4">{t('certColStatus')}</th>
+                <th className="p-4">{t('certColConformity')}</th>
                 <th className="p-4">{t('certColQuality')}</th>
                 <th className="p-4">{t('certColHash')}</th>
                 <th className="p-4">{t('certColDate')}</th>
@@ -243,14 +244,14 @@ export default function CertificatesPage() {
             <tbody className="divide-y divide-slate-800/60">
               {isLoading && certs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-500">
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
                     <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
                     {t('certsLoading')}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-10 text-center text-slate-500">
+                  <td colSpan={8} className="p-10 text-center text-slate-500">
                     <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 text-slate-600" />
                     <p className="font-semibold">{t('certsEmpty')}</p>
                     <p className="text-[10px] mt-1">{t('certsEmptySub')}</p>
@@ -286,6 +287,23 @@ export default function CertificatesPage() {
                         >
                           {cfg.icon} {cfg.label}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        {cert.conformity_status ? (
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                              cert.conformity_status === 'CONFORME'
+                                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25'
+                                : cert.conformity_status === 'NON_CONFORME'
+                                ? 'text-rose-400 bg-rose-500/10 border-rose-500/25'
+                                : 'text-amber-400 bg-amber-500/10 border-amber-500/25'
+                            }`}
+                          >
+                            {cert.conformity_status}
+                          </span>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
                       </td>
                       <td className="p-4">
                         {cert.extraction_quality ? (

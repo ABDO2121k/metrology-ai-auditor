@@ -627,14 +627,38 @@ func GetStats(c *fiber.Ctx) error {
 		byStatus[row.Status] = row.Count
 	}
 
-	var conformePoints, totalPoints int64
+	var totalPoints int64
 	services.DB.Model(&models.MeasurementPoint{}).Count(&totalPoints)
-	services.DB.Model(&models.MeasurementPoint{}).Where("is_conforme = ?", true).Count(&conformePoints)
+
+	// Compliance is only meaningful over points that were actually judged. A
+	// certificate read without column headers is stored as INDETERMINE and its
+	// points carry is_conforme = true because no verdict was reached - counting
+	// those would report near-100% compliance for work nobody has checked.
+	const decided = `
+		EXISTS (
+			SELECT 1 FROM certificates c
+			WHERE c.id = measurement_points.certificate_id
+			  AND c.conformity_status IN ('CONFORME', 'NON_CONFORME')
+		)`
+
+	var judgedPoints, conformePoints int64
+	services.DB.Model(&models.MeasurementPoint{}).Where(decided).Count(&judgedPoints)
+	services.DB.Model(&models.MeasurementPoint{}).
+		Where(decided).
+		Where("is_conforme = ?", true).
+		Count(&conformePoints)
 
 	compliance := 0.0
-	if totalPoints > 0 {
-		compliance = float64(conformePoints) / float64(totalPoints) * 100.0
+	if judgedPoints > 0 {
+		compliance = float64(conformePoints) / float64(judgedPoints) * 100.0
 	}
+
+	// Certificates awaiting a human decision because the audit could not reach
+	// one on its own.
+	var undecidedCertificates int64
+	services.DB.Model(&models.Certificate{}).
+		Where("conformity_status = ?", "INDETERMINE").
+		Count(&undecidedCertificates)
 
 	var anomalyCount int64
 	services.DB.Model(&models.AnomalyAuditLog{}).
@@ -649,9 +673,11 @@ func GetStats(c *fiber.Ctx) error {
 		"failed":              byStatus[models.StatusOCRFailed],
 		"flagged":             byStatus[models.StatusFlaggedAnomaly],
 		"validated":           byStatus[models.StatusValidated],
-		"total_points":        totalPoints,
-		"conforme_points":     conformePoints,
-		"compliance_percent":  compliance,
-		"blocking_anomalies":  anomalyCount,
+		"total_points":           totalPoints,
+		"judged_points":          judgedPoints,
+		"conforme_points":        conformePoints,
+		"compliance_percent":     compliance,
+		"blocking_anomalies":     anomalyCount,
+		"undecided_certificates": undecidedCertificates,
 	})
 }

@@ -169,6 +169,25 @@ export interface AnomalyLog {
   detected_at: string;
 }
 
+/** Tri-state: a greyscale scan cannot prove a cachet is absent. */
+export type MarkStatus = 'PRESENT' | 'ABSENT' | 'NOT_VERIFIABLE';
+
+export interface VisualValidation {
+  validation_stamp_status: MarkStatus;
+  signature_status: MarkStatus;
+  lab_logo_present: boolean;
+  accreditation_logo_present: boolean;
+  validation_stamp_present: boolean;
+  signatures_present: boolean;
+  colour_capable_scan: boolean;
+  letterhead_colour_percent: number;
+  validation_zone_colour_percent: number;
+  marks_found_on_pages: number[];
+  evidence_notes: string[];
+  operator_name: string | null;
+  approver_name: string | null;
+}
+
 export interface CertificateOCR {
   certificate_id: string;
   status: string;
@@ -191,9 +210,13 @@ export interface CertificateStats {
   flagged: number;
   validated: number;
   total_points: number;
+  /** Points belonging to a certificate whose conformity was actually decided. */
+  judged_points: number;
   conforme_points: number;
+  /** Measured over judged_points only, never over undecided ones. */
   compliance_percent: number;
   blocking_anomalies: number;
+  undecided_certificates: number;
 }
 
 // --- Endpoints ------------------------------------------------------------

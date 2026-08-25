@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Upload, FileSpreadsheet, Users, Server, RefreshCw,
-  AlertTriangle, CheckCircle2, ArrowRight, ShieldCheck,
+  AlertTriangle, CheckCircle2, ArrowRight, ShieldCheck, HelpCircle,
   Activity, FileCheck2, XCircle, Gauge,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -80,7 +80,11 @@ export default function DashboardPage() {
     load();
   }, [load]);
 
-  const compliance = stats ? Math.round(stats.compliance_percent) : null;
+  // Only meaningful once something has actually been judged: a set of purely
+  // INDETERMINE certificates has no compliance rate, and showing 0% or 100%
+  // would both be wrong.
+  const hasJudged = (stats?.judged_points ?? 0) > 0;
+  const compliance = stats && hasJudged ? Math.round(stats.compliance_percent) : null;
 
   return (
     <div className="space-y-8 py-4">
@@ -134,8 +138,12 @@ export default function DashboardPage() {
         <Kpi
           label={t('statCompliancePass')}
           value={compliance === null ? '—' : `${compliance}%`}
-          sub={t('statComplianceSub')}
-          tone="emerald"
+          sub={
+            hasJudged
+              ? `${stats?.conforme_points}/${stats?.judged_points} ${t('kpiJudgedSub')}`
+              : t('kpiNoneJudged')
+          }
+          tone={hasJudged ? 'emerald' : 'amber'}
           icon={<CheckCircle2 className="w-3.5 h-3.5" />}
         />
         <Kpi
@@ -151,7 +159,7 @@ export default function DashboardPage() {
         <Kpi
           label={t('kpiPointsAudited')}
           value={stats?.total_points ?? '—'}
-          sub={t('statComplianceSub')}
+          sub={hasJudged ? `${stats?.judged_points} ${t('kpiJudgedSub')}` : t('kpiNoneJudged')}
           tone="cyan"
           icon={<Gauge className="w-3.5 h-3.5" />}
         />
@@ -160,6 +168,13 @@ export default function DashboardPage() {
           value={stats?.flagged ?? '—'}
           tone="amber"
           icon={<AlertTriangle className="w-3.5 h-3.5" />}
+        />
+        <Kpi
+          label={t('kpiUndecided')}
+          value={stats?.undecided_certificates ?? '—'}
+          sub={t('kpiUndecidedSub')}
+          tone="amber"
+          icon={<HelpCircle className="w-3.5 h-3.5" />}
         />
         <Kpi
           label={t('kpiFailed')}

@@ -210,6 +210,63 @@ or the other way round. The values are surfaced for the technician; the
 conformity verdict is withheld as `INDETERMINE`. Set `OPENAI_API_KEY` and the
 vision layer supplies the column meaning along with the numbers.
 
+## 3b. Cachet and signature — the check that was never really running
+
+`has_stamp` was decided by searching the OCR transcript for words like
+`ACCREDITATION`, `CACHET`, `SIGNATURE`. A cachet is an ink impression and a
+signature is a pen stroke — neither is text. Worse, every sample certificate
+carries that word in its footer boilerplate:
+
+> L'ACCREDITATION PAR LE SOAC ATTESTE DE LA COMPETENCE DES LABORATOIRES...
+
+So the check returned **true for every certificate**, and `audit_visual` — a
+*blocking* ISO 17025 control — passed without anything ever being looked at.
+
+`visual.py` now inspects the pixels. Printed content is black; an applied mark
+is coloured ink. The laboratory letterhead is coloured too, but sits in a fixed
+band at the top of every page, so excluding that band separates pre-printed
+branding from marks applied afterwards.
+
+The result is **tri-state**, because some scans are captured in greyscale and
+on those the absence of colour proves nothing:
+
+| Status | Meaning | Audit effect |
+|---|---|---|
+| `PRESENT` | coloured mark found below the letterhead | passes |
+| `ABSENT` | scan preserved colour, no mark below it | **blocks** |
+| `NOT_VERIFIABLE` | greyscale capture — ink is indistinguishable from print | **warns**, routes to a human |
+
+Measured on the samples:
+
+| Certificate | Letterhead colour | Validation zone | Verdict |
+|---|---|---|---|
+| Certif 1 | 0.00% | 0.00% | `NOT_VERIFIABLE` — greyscale scan |
+| Certif 2 | 0.96% | 0.00% | `ABSENT` — colour preserved, no mark |
+| Certif 3 | 0.00% | 0.00% | `NOT_VERIFIABLE` — greyscale scan |
+| Certif 4 | 0.00% | 0.04% | `NOT_VERIFIABLE` — greyscale scan |
+| Certif 5 | 0.91% | 0.00% | `ABSENT` — colour preserved, no mark |
+
+None of the test certificates carries a detectable applied cachet, which is
+consistent with them being unsigned sample copies. Certif 2 and 5 now block on
+it; the greyscale ones warn. Previously all five passed silently.
+
+A cachet applied in **black** ink on a colour scan would also read as `ABSENT`,
+and the evidence note says so explicitly so the reviewer knows what to confirm.
+
+---
+
+## 3c. Compliance KPI no longer counts unjudged points
+
+Points from an `INDETERMINE` certificate are stored with `is_conforme = true`
+because no verdict was reached — not because they passed. `GetStats` counted
+them, so the app dashboard reported near-100% compliance over certificates
+nobody had judged. Compliance is now measured over points whose certificate
+reached `CONFORME` or `NON_CONFORME`, the tile reads `—` when nothing has been
+judged, and a separate *Conformité indéterminée* KPI shows how many
+certificates are waiting on a human.
+
+---
+
 ## 4. Persistence — extraction now happens once
 
 Previously `measurement_points` was **never written to** by any code path, and
@@ -302,6 +359,45 @@ Existing deployments are migrated on gateway start:
 
 ---
 
+## 6b. Frontend — separated views
+
+The certificate page stacked verdict, evidence, measurements and diagnostics
+into one scroll, which buried the decision and made a 47-point multimeter
+unreadable. It is now three views behind a selector:
+
+| View | Answers |
+|---|---|
+| **Synthèse** | May this be validated? Decision, conformity, cachet/signature, page integrity, chronology, conditions, traceability, key figures, anomalies |
+| **Rapport détaillé** | Why? Client/instrument, document, dates, conditions, reference standards, what the visual inspection measured, every observation, extraction diagnostics with per-field provenance |
+| **Mesures** | The numbers. Grouped by quantity, with a per-range filter |
+
+Built to hold for any certificate, not just these five:
+
+- **Measurements group by unit.** A tachometer has one section (tr/min), an
+  earth tester two (Ω, kΩ), a multimeter seven (V, mV, A, mA, µA, Ω, kΩ). The
+  range filter only appears when there is more than one.
+- **Numbers format by magnitude** — metrology values span 0.0005 V to 800 V, so
+  fixed decimals would either truncate or add noise.
+- **Missing fields render as "non renseigné"**, never as a blank cell, so a
+  field the pipeline could not read is visibly absent.
+- **Zero measurements is a finding**, shown as an explicit callout rather than
+  an empty table.
+- **Undecided conformity** shows "Indéterminé" per point instead of a green
+  tick, so an unjudged point is never mistaken for a passing one.
+
+App-level pages verified against real endpoints:
+
+| Page | Endpoint | Purpose |
+|---|---|---|
+| `/dashboard` | `/certificates/stats`, `/admin/users` | Global app dashboard |
+| `/certificates` | `/certificates/` | Registry, now with a conformity column |
+| `/certificates/[id]` | `/certificates/:id`, `/:id/ocr` | The three views above |
+| `/upload` | `/certificates/upload` | Ingestion |
+| `/admin/users` | `/admin/users*` | Administration |
+| `/admin/docker-metrics` | `/admin/system/health` | Health check |
+
+---
+
 ## 7. Configuration
 
 ```bash
@@ -373,13 +469,15 @@ python scripts/test_all_pdfs.py
 | Check | Result |
 |---|---|
 | `npx tsc --noEmit` | passes |
-| `npx next build` | passes — 9 routes, no lint or type errors |
-| All 8 OCR modules parse and import | passes |
+| 9 OCR modules parse, import, no control chars | passes |
+| Go sources structurally balanced | passes |
 | `docker compose config` | valid |
-| `python scripts/test_all_pdfs.py` over all 5 real certificates | completes, results in §3 |
+| `python scripts/test_all_pdfs.py` over all 5 real certificates | completes; results in §3 and §3b |
+| Cachet tri-state (`PRESENT` / `ABSENT` / `NOT_VERIFIABLE`) drives block / pass / warn | verified per state |
+| Measurement grouping across 7 units on Certif 5 | verified |
 
-**Not verified:** the Go services were not compiled — no Go toolchain is
-installed on this machine and the Docker daemon was not running. They were
-reviewed by hand for import usage and structural balance, but `docker compose
-up --build` is the first real compile of `auth-gateway` and
-`document-ingestion`.
+**Not verified:** the Go services were not compiled — no Go toolchain on this
+machine and the Docker daemon was not running. `npx next build` was also not
+run this round (verification only, by request); the last full build passed with
+all 9 routes. `docker compose up --build` remains the first real compile of
+`auth-gateway` and `document-ingestion`.

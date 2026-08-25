@@ -96,10 +96,25 @@ class ReferenceStandardAuditItem(BaseModel):
 
 
 class VisualValidation(BaseModel):
-    lab_logo_present: bool = True
-    accreditation_logo_present: bool = True
-    validation_stamp_present: bool = True
-    signatures_present: bool = True
+    """Result of looking for marks applied to the document.
+
+    The statuses are tri-state (PRESENT / ABSENT / NOT_VERIFIABLE) rather than
+    booleans: a greyscale scan destroys the colour signal that separates an ink
+    cachet from printed content, and a document nobody could inspect must be
+    routed to a human rather than silently passed or failed.
+    """
+    validation_stamp_status: str = "NOT_VERIFIABLE"
+    signature_status: str = "NOT_VERIFIABLE"
+    # Boolean views kept for existing consumers; unknown reads as not present.
+    lab_logo_present: bool = False
+    accreditation_logo_present: bool = False
+    validation_stamp_present: bool = False
+    signatures_present: bool = False
+    colour_capable_scan: bool = False
+    letterhead_colour_percent: float = 0.0
+    validation_zone_colour_percent: float = 0.0
+    marks_found_on_pages: List[int] = []
+    evidence_notes: List[str] = []
     operator_name: Optional[str] = None
     approver_name: Optional[str] = None
 

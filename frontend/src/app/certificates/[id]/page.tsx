@@ -4,27 +4,34 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft, FileText, RefreshCw, ScanLine, AlertTriangle, CheckCircle2,
-  XCircle, Info, Loader2, Gauge, Beaker, Calendar,
+  ArrowLeft, FileText, RefreshCw, ScanLine, XCircle, Loader2,
+  ShieldCheck, ClipboardList, Beaker,
 } from 'lucide-react';
 import { api, Certificate, CertificateOCR } from '@/lib/api';
+import GlobalReport from '@/components/certificate/GlobalReport';
+import DetailReport from '@/components/certificate/DetailReport';
+import Measurements from '@/components/certificate/Measurements';
 
 const IN_PROGRESS = new Set(['PENDING_OCR', 'OCR_PROCESSING']);
 
-function Field({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
-  return (
-    <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-      <div className="text-[10px] text-slate-400 uppercase tracking-wide">{label}</div>
-      <div className={`text-xs font-semibold break-words ${tone || 'text-white'}`}>
-        {value === null || value === undefined || value === '' ? (
-          <span className="text-slate-600">—</span>
-        ) : (
-          value
-        )}
-      </div>
-    </div>
-  );
-}
+/**
+ * One certificate, in three separated views.
+ *
+ *   Synthèse         - the decision and the controls behind it
+ *   Rapport détaillé - the evidence: identity, dates, conditions, traceability,
+ *                      visual inspection, extraction diagnostics
+ *   Mesures          - the measurement table, grouped by quantity
+ *
+ * The page previously stacked all of this into one scroll, which buried the
+ * verdict under diagnostics and made a 47-point multimeter unreadable.
+ */
+const TABS = [
+  { id: 'summary', label: 'Synthèse', Icon: ShieldCheck },
+  { id: 'detail', label: 'Rapport détaillé', Icon: ClipboardList },
+  { id: 'measures', label: 'Mesures', Icon: Beaker },
+] as const;
+
+type TabId = (typeof TABS)[number]['id'];
 
 export default function CertificateDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -35,15 +42,12 @@ export default function CertificateDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [reprocessing, setReprocessing] = useState(false);
   const [error, setError] = useState('');
+  const [tab, setTab] = useState<TabId>('summary');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /**
-   * Read the stored extraction.
-   *
-   * This page used to POST to /ocr/parse on every mount, which re-ran a
-   * multi-second OCR pass (and, with a vision key configured, re-billed it)
-   * just to look at a certificate. Extraction now happens once at upload and
-   * the result is read back from the database.
+   * Read the stored extraction. This never triggers a new OCR run: extraction
+   * happens once at upload, so viewing a certificate costs nothing.
    */
   const load = useCallback(
     async (showSpinner = true) => {
@@ -56,7 +60,7 @@ export default function CertificateDetailsPage() {
         try {
           setOcr(await api.getCertificateOCR(certificateId));
         } catch {
-          // An extraction that has not finished yet is expected, not an error.
+          // An extraction still running is expected, not an error.
           setOcr(null);
         }
       } catch (err: any) {
@@ -121,11 +125,8 @@ export default function CertificateDetailsPage() {
     );
   }
 
-  const extraction = ocr?.extraction;
-  const payload = extraction?.universal_payload;
-  const validation = extraction?.ai_validation;
-  const diagnostics = extraction?.diagnostics;
   const busy = certificate ? IN_PROGRESS.has(certificate.status) : false;
+  const pointCount = ocr?.measurements?.length ?? 0;
 
   return (
     <div className="space-y-6 py-2">
@@ -156,8 +157,8 @@ export default function CertificateDetailsPage() {
         </div>
       )}
 
-      {/* Document identity */}
-      <div className="glass-panel rounded-3xl border border-slate-800 p-6 space-y-4">
+      {/* Identity header — always visible, whichever view is open. */}
+      <div className="glass-panel rounded-3xl border border-slate-800 p-6 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h1 className="text-xl font-extrabold text-white flex items-center gap-2">
             <FileText className="w-5 h-5 text-cyan-400" />
@@ -167,15 +168,11 @@ export default function CertificateDetailsPage() {
             {certificate?.status}
           </span>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Field label="Fichier" value={certificate?.original_filename} />
-          <Field label="Client" value={certificate?.client_name} />
-          <Field label="Instrument" value={certificate?.instrument_name} />
-          <Field label="N° de série" value={certificate?.instrument_serial} />
-          <Field label="Date d'étalonnage" value={certificate?.calibration_date} />
-          <Field label="Date d'émission" value={certificate?.issue_date} />
-        </div>
+        <p className="text-xs text-slate-400">
+          {certificate?.client_name || 'Client non renseigné'}
+          {certificate?.instrument_name ? ` · ${certificate.instrument_name}` : ''}
+          {certificate?.original_filename ? ` · ${certificate.original_filename}` : ''}
+        </p>
       </div>
 
       {busy && (
@@ -202,282 +199,37 @@ export default function CertificateDetailsPage() {
         </div>
       )}
 
-      {/* Audit verdict */}
-      {validation && (
-        <div className="glass-panel rounded-3xl border border-slate-800 p-6 space-y-4">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Gauge className="w-5 h-5 text-cyan-400" /> Verdict de l'audit
-          </h2>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Field
-              label="Recommandation"
-              value={payload?.ai_decision?.validation_recommendation}
-              tone={
-                payload?.ai_decision?.validation_recommendation === 'VALIDATED'
-                  ? 'text-emerald-300'
-                  : payload?.ai_decision?.validation_recommendation === 'REJECTED'
-                  ? 'text-rose-300'
-                  : 'text-amber-300'
-              }
-            />
-            <Field
-              label="Conformité"
-              value={payload?.metrological_audit?.conformity_status}
-              tone={
-                payload?.metrological_audit?.conformity_status === 'CONFORME'
-                  ? 'text-emerald-300'
-                  : payload?.metrological_audit?.conformity_status === 'NON_CONFORME'
-                  ? 'text-rose-300'
-                  : 'text-amber-300'
-              }
-            />
-            <Field
-              label="Qualité d'extraction"
-              value={validation.extraction_quality}
-              tone={
-                ['EXCELLENT', 'HIGH'].includes(validation.extraction_quality)
-                  ? 'text-emerald-300'
-                  : validation.extraction_quality === 'MEDIUM'
-                  ? 'text-amber-300'
-                  : 'text-rose-300'
-              }
-            />
-            <Field
-              label="Confiance"
-              value={`${Math.round((validation.confidence_score || 0) * 100)}%`}
-            />
-          </div>
-
-          {validation.critical_issues?.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5" /> Anomalies bloquantes (
-                {validation.critical_issues.length})
-              </p>
-              {validation.critical_issues.map((issue: string, i: number) => (
-                <div
-                  key={i}
-                  className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-[11px] text-rose-200"
-                >
-                  {issue}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {validation.warnings?.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5" /> Avertissements ({validation.warnings.length})
-              </p>
-              {validation.warnings.map((warning: string, i: number) => (
-                <div
-                  key={i}
-                  className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-200"
-                >
-                  {warning}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {validation.suggestions?.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                <Info className="w-3.5 h-3.5" /> Suggestions
-              </p>
-              {validation.suggestions.map((s: string, i: number) => (
-                <div
-                  key={i}
-                  className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700 text-[11px] text-slate-300"
-                >
-                  {s}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Conditions & traceability */}
-      {payload && (
-        <div className="glass-panel rounded-3xl border border-slate-800 p-6 space-y-4">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-emerald-400" /> Conditions & traçabilité
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Field label="Domaine" value={payload.document_info?.domain} />
-            <Field
-              label="Pages (annoncées / extraites)"
-              value={`${payload.document_info?.announced_pages ?? '—'} / ${
-                payload.document_info?.extracted_pages ?? '—'
-              }`}
-              tone={payload.document_info?.page_integrity_pass ? 'text-emerald-300' : 'text-rose-300'}
-            />
-            <Field label="Température" value={payload.dates_and_conditions?.ambient_temperature} />
-            <Field label="Humidité" value={payload.dates_and_conditions?.ambient_humidity} />
-            <Field
-              label="Tampon / cachet"
-              value={payload.visual_validation?.validation_stamp_present ? 'Présent' : 'Absent'}
-              tone={
-                payload.visual_validation?.validation_stamp_present
-                  ? 'text-emerald-300'
-                  : 'text-rose-300'
-              }
-            />
-            <Field
-              label="Signature"
-              value={payload.visual_validation?.signatures_present ? 'Présente' : 'Absente'}
-              tone={
-                payload.visual_validation?.signatures_present ? 'text-emerald-300' : 'text-rose-300'
-              }
-            />
-            <Field label="Amendement" value={payload.document_info?.is_amendment ? 'Oui' : 'Non'} />
-            <Field
-              label="Remplace"
-              value={payload.document_info?.superseded_certificate}
-            />
-          </div>
-
-          {payload.reference_standards_audit?.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-bold text-slate-300">Étalons de référence</p>
-              {payload.reference_standards_audit.map((std: any, i: number) => (
-                <div
-                  key={i}
-                  className={`p-2.5 rounded-lg border text-[11px] flex justify-between gap-3 flex-wrap ${
-                    std.is_valid_at_calibration
-                      ? 'bg-slate-800/60 border-slate-700 text-slate-300'
-                      : 'bg-rose-500/10 border-rose-500/25 text-rose-200'
-                  }`}
-                >
-                  <span>
-                    {std.designation} {std.connection_code ? `(${std.connection_code})` : ''}
-                  </span>
-                  <span>Validité : {std.validity_date || '—'}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Measurement table */}
-      <div className="glass-panel rounded-3xl border border-slate-800 p-6 space-y-4">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Beaker className="w-5 h-5 text-emerald-400" />
-          Points de mesure {ocr?.measurements?.length ? `(${ocr.measurements.length})` : ''}
-        </h2>
-
-        {!ocr?.measurements?.length ? (
-          <p className="text-slate-400 text-xs">
-            {busy
-              ? 'Extraction en cours…'
-              : "Aucun point de mesure n'a pu être extrait de ce certificat."}
-          </p>
-        ) : (
-          <div className="overflow-x-auto border border-slate-800 rounded-2xl">
-            <table className="w-full text-xs whitespace-nowrap">
-              <thead className="bg-slate-950 text-slate-300">
-                <tr>
-                  <th className="p-3 text-left">#</th>
-                  <th className="p-3 text-left">Grandeur</th>
-                  <th className="p-3 text-left">Unité</th>
-                  <th className="p-3 text-left">Référence</th>
-                  <th className="p-3 text-left">Mesuré</th>
-                  <th className="p-3 text-left">Erreur</th>
-                  <th className="p-3 text-left">Correction</th>
-                  <th className="p-3 text-left">U (k=2)</th>
-                  <th className="p-3 text-left">EMT</th>
-                  <th className="p-3 text-left">|Corr|+U</th>
-                  <th className="p-3 text-left">Verdict</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ocr.measurements.map((m) => (
-                  <tr key={m.point_index} className="border-t border-slate-800 text-slate-200">
-                    <td className="p-3">{m.point_index}</td>
-                    <td className="p-3 text-slate-400">{m.parameter || '—'}</td>
-                    <td className="p-3 text-slate-400">{m.unit || '—'}</td>
-                    <td className="p-3">{m.reference_value}</td>
-                    <td className="p-3">{m.measured_value}</td>
-                    <td className="p-3">{m.calculated_error}</td>
-                    <td className="p-3">{m.calculated_correction}</td>
-                    <td className="p-3">{m.expanded_uncertainty_u}</td>
-                    <td className="p-3">{m.emt_limit}</td>
-                    <td className="p-3">{m.guard_band_sum}</td>
-                    <td className="p-3">
-                      {m.is_conforme ? (
-                        <span className="text-emerald-400 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Conforme
-                        </span>
-                      ) : (
-                        <span className="text-rose-400 font-bold flex items-center gap-1">
-                          <XCircle className="w-3 h-3" /> Non conforme
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* View selector */}
+      <div className="flex flex-wrap gap-2">
+        {TABS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold border flex items-center gap-2 transition ${
+              tab === id
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            {label}
+            {id === 'measures' && ocr ? (
+              <span className="text-[10px] font-semibold text-slate-500">({pointCount})</span>
+            ) : null}
+          </button>
+        ))}
       </div>
 
-      {/* How the extraction was produced */}
-      {diagnostics && (
-        <details className="glass-panel rounded-3xl border border-slate-800 p-6">
-          <summary className="text-sm font-bold text-white cursor-pointer">
-            Diagnostic d'extraction
-          </summary>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-            <Field label="Moteurs" value={diagnostics.engine_pipeline?.join(' → ')} />
-            <Field label="Modèle vision" value={diagnostics.vision_model || 'non utilisé'} />
-            <Field
-              label="Confiance OCR"
-              value={
-                diagnostics.ocr_mean_confidence != null
-                  ? `${Math.round(diagnostics.ocr_mean_confidence * 100)}%`
-                  : null
-              }
-            />
-            <Field label="Durée" value={`${((diagnostics.duration_ms || 0) / 1000).toFixed(1)} s`} />
-            <Field label="Pages rendues" value={diagnostics.pages_rendered} />
-            <Field label="Caractères OCR" value={diagnostics.ocr_chars} />
-            <Field
-              label="Taille rendu"
-              value={`${Math.round((diagnostics.render_bytes_total || 0) / 1024)} Ko`}
-            />
-            <Field label="Erreur vision" value={diagnostics.vision_error} />
-          </div>
-
-          {diagnostics.field_provenance?.length > 0 && (
-            <div className="mt-4 overflow-x-auto border border-slate-800 rounded-2xl">
-              <table className="w-full text-[11px]">
-                <thead className="bg-slate-950 text-slate-400">
-                  <tr>
-                    <th className="p-2 text-left">Champ</th>
-                    <th className="p-2 text-left">Valeur</th>
-                    <th className="p-2 text-left">Source</th>
-                    <th className="p-2 text-left">Confiance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {diagnostics.field_provenance.map((p: any, i: number) => (
-                    <tr key={i} className="border-t border-slate-800">
-                      <td className="p-2 text-slate-400">{p.field}</td>
-                      <td className="p-2 text-slate-200 max-w-[220px] truncate">{p.value || '—'}</td>
-                      <td className="p-2 text-slate-400">{p.source}</td>
-                      <td className="p-2 text-slate-400">{Math.round((p.confidence || 0) * 100)}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </details>
+      {!ocr && !busy ? (
+        <div className="glass-panel rounded-3xl border border-slate-800 p-8 text-center text-slate-400 text-xs">
+          Aucun résultat d'extraction disponible pour ce certificat.
+        </div>
+      ) : (
+        <>
+          {tab === 'summary' && <GlobalReport certificate={certificate} ocr={ocr} />}
+          {tab === 'detail' && <DetailReport certificate={certificate} ocr={ocr} />}
+          {tab === 'measures' && <Measurements ocr={ocr} />}
+        </>
       )}
     </div>
   );

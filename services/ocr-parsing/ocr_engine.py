@@ -26,6 +26,7 @@ import local_ocr
 import parsing
 import render
 import vision
+import visual
 from audit import (
     audit_chronology,
     audit_conditions,
@@ -573,16 +574,18 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
         if not row.unit:
             row.unit = default_unit
 
-    # ---- Stamp / signature ----------------------------------------------
+    # ---- Cachet / signature ---------------------------------------------
+    # A cachet is an ink impression, not text, so the transcript cannot answer
+    # this. The pixels are inspected instead, and the result is tri-state: a
+    # greyscale capture cannot distinguish stamped ink from print, and that
+    # case is reported rather than guessed either way.
     if vision_data is not None:
-        has_stamp = bool(vision_data.get("has_stamp_logo", False))
-        has_signature = bool(vision_data.get("has_signature", False))
+        visual_evidence = visual.from_vision(vision_data)
     else:
-        # Without a visual pass we cannot see a stamp. Say so rather than
-        # asserting a default that would silently pass the visual audit.
-        haystack = parsing.normalize(transcript)
-        has_stamp = any(k in haystack for k in ("ACCREDITATION", "SEMAC", "COFRAC", "CACHET"))
-        has_signature = any(k in haystack for k in ("SIGNATURE", "SIGNE", "VISA", "APPROUVE PAR"))
+        visual_evidence = visual.analyse(rendered.pages)
+
+    has_stamp = visual_evidence.stamp_present
+    has_signature = visual_evidence.signature_present
 
     # ---- Reference standards --------------------------------------------
     reference_standards = _reference_standards(
@@ -615,7 +618,7 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
     audit_chronology(outcome, calibration_date, issue_date, validation_date, next_calibration_date)
     audit_reference_standard(outcome, calibration_date, standard_expiry, standard_code)
     audit_conditions(outcome, temperature_value, humidity_value)
-    audit_visual(outcome, has_stamp, has_signature)
+    audit_visual(outcome, visual_evidence.stamp_status, visual_evidence.signature_status)
 
     missing_critical = []
     if not certificate_number:
@@ -759,10 +762,17 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
         ),
         reference_standards_audit=reference_standards,
         visual_validation=VisualValidation(
-            lab_logo_present=has_stamp,
-            accreditation_logo_present=has_stamp,
+            validation_stamp_status=visual_evidence.stamp_status,
+            signature_status=visual_evidence.signature_status,
+            lab_logo_present=visual_evidence.letterhead_colour_percent > 0,
+            accreditation_logo_present=visual_evidence.letterhead_colour_percent > 0,
             validation_stamp_present=has_stamp,
             signatures_present=has_signature,
+            colour_capable_scan=visual_evidence.colour_capable,
+            letterhead_colour_percent=visual_evidence.letterhead_colour_percent,
+            validation_zone_colour_percent=visual_evidence.validation_zone_colour_percent,
+            marks_found_on_pages=visual_evidence.marks_found_on_pages,
+            evidence_notes=visual_evidence.notes,
             operator_name=operator_name,
             approver_name=approver_name,
         ),
