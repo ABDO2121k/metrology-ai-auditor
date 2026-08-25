@@ -36,7 +36,11 @@ func main() {
 	api := app.Group("/api/v1/certificates")
 	api.Post("/upload", handlers.UploadCertificate)
 	api.Get("/", handlers.ListCertificates)
+	api.Get("/stats", handlers.GetStats)
 	api.Get("/:id", handlers.GetCertificateByID)
+	// Stored extraction. Reading a certificate must never trigger a new OCR run.
+	api.Get("/:id/ocr", handlers.GetCertificateOCR)
+	api.Post("/:id/reprocess", handlers.ReprocessCertificate)
 	api.Delete("/:id", handlers.DeleteCertificate)
 
 	port := os.Getenv("PORT_DOCUMENT")

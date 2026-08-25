@@ -1,4 +1,38 @@
+# =============================================================================
+# Environment & secrets
+# =============================================================================
+# .env is never committed: it is the one place a real OPENAI_API_KEY would end
+# up, and a key pushed once stays in the history. Copy .env.example instead —
+# it carries the full, correct configuration:
+#
+#     cp .env.example .env
+#
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# =============================================================================
+# Node / Next.js
+# =============================================================================
+node_modules/
+.next/
+out/
+build/
+.pnp
+.pnp.js
+*.tsbuildinfo
+.npm
+.yarn/cache
+.yarn/install-state.gz
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+
+# =============================================================================
 # Python
+# =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -7,19 +41,43 @@ __pycache__/
 env/
 venv/
 ENV/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
 
-# Go compiled binaries
+# OCR model cache — the models are baked into the image at build time.
+.rapidocr/
+*.onnx
+
+# =============================================================================
+# Go
+# =============================================================================
 *.exe
 *.exe~
 *.dll
-*.so
 *.dylib
+*.test
 services/auth-gateway/gateway
 services/document-ingestion/document-ingestion
 
-# Environment files
-.env
-
-# OS files
+# =============================================================================
+# Editors & OS
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# =============================================================================
+# Local runtime artefacts
+# =============================================================================
+*.log
+logs/
+tmp/
+.coverage
+coverage/

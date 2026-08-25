@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
+import { api } from '@/lib/api';
 
 interface UploadResult {
   certificate_id: string;
@@ -39,53 +40,46 @@ export default function UploadPage() {
   };
 
   const addFilesToQueue = useCallback((files: FileList | File[]) => {
-    const fileArr = Array.from(files);
-    const newItems: QueuedFile[] = fileArr
-      .filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'))
-      .map(f => ({
+    const MAX_BYTES = 50 * 1024 * 1024; // matches the gateway's BodyLimit
+    const newItems: QueuedFile[] = Array.from(files)
+      .filter((f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'))
+      .map((f) => ({
         id: `${Date.now()}-${Math.random()}`,
         file: f,
-        state: 'queued' as const,
+        // Flag an oversized file here rather than letting the gateway reject
+        // it after a long upload.
+        state: (f.size > MAX_BYTES ? 'error' : 'queued') as QueuedFile['state'],
+        errorMsg: f.size > MAX_BYTES ? 'Fichier trop volumineux (max 50 Mo)' : undefined,
       }));
-    setQueue(prev => [...prev, ...newItems]);
+    setQueue((prev) => [...prev, ...newItems]);
   }, []);
 
   const uploadFile = async (item: QueuedFile) => {
-    updateQueueItem(item.id, { state: 'uploading', progress: 10 });
-
-    const token = getToken();
-    const formData = new FormData();
-    formData.append('file', item.file);
+    updateQueueItem(item.id, { state: 'uploading', progress: 20 });
 
     try {
-      updateQueueItem(item.id, { progress: 40 });
-
-      const res = await fetch('http://localhost:8000/api/v1/certificates/upload', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
+      // The gateway answers 202 as soon as the file is stored; OCR then runs
+      // in the background. The certificates registry polls for the result.
+      const data = await api.uploadCertificate(item.file);
+      updateQueueItem(item.id, {
+        state: 'success',
+        result: { ...data, filename: item.file.name } as UploadResult,
+        progress: 100,
       });
-
-      const data = await res.json();
-      updateQueueItem(item.id, { progress: 90 });
-
-      if (res.status === 409) {
+    } catch (err: any) {
+      if (err?.status === 409) {
         updateQueueItem(item.id, {
           state: 'duplicate',
-          errorMsg: `${t('uploadDuplicateMsg')}: ${data.hash?.slice(0, 12)}...`,
+          errorMsg: t('uploadDuplicateMsg'),
           progress: 100,
         });
-      } else if (!res.ok) {
-        throw new Error(data.error || 'Upload failed');
       } else {
         updateQueueItem(item.id, {
-          state: 'success',
-          result: { ...data, filename: item.file.name },
-          progress: 100,
+          state: 'error',
+          errorMsg: err?.message || 'Upload failed',
+          progress: 0,
         });
       }
-    } catch (err: any) {
-      updateQueueItem(item.id, { state: 'error', errorMsg: err.message, progress: 0 });
     }
   };
 

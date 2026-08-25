@@ -1,5 +1,6 @@
 import os
 from typing import List, Dict, Any
+from fastapi import FastAPI
 try:
     from metrology_schemas import MetrologyAuditRequest, MetrologyAuditResult, PointInput
 except ImportError:

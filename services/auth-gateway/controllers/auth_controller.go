@@ -2,7 +2,10 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -115,8 +118,10 @@ func Register(c *fiber.Ctx) error {
 		Email:        req.Email,
 		PasswordHash: string(hash),
 		FullName:     req.FullName,
-		Role:         req.Role,
-		IsActive:     true,
+		// The platform has one role. Whatever a client sends is coerced, so a
+		// stale caller cannot create an account the database enum would reject.
+		Role:     models.Normalize(req.Role),
+		IsActive: true,
 	}
 
 	if err := config.DB.Create(&newUser).Error; err != nil {
@@ -288,11 +293,16 @@ type ServiceHealthStatus struct {
 	URL       string `json:"url"`
 	Status    string `json:"status"`
 	Latency   int64  `json:"latency"`
+	Detail    string `json:"detail,omitempty"`
 }
 
-// GetSystemHealth (Backend Microservices Pinger returning 9/9 Docker Container Status)
+// GetSystemHealth probes every dependency and reports what it actually found.
+//
+// The previous implementation assigned "healthy" in both branches of its error
+// check, so the dashboard showed 9/9 green while services were down - exactly
+// when an operator most needs the truth.
 func GetSystemHealth(c *fiber.Ctx) error {
-	client := http.Client{Timeout: 2 * time.Second}
+	client := http.Client{Timeout: 3 * time.Second}
 
 	targetServices := []ServiceHealthStatus{
 		{Name: "Auth Gateway Service", Port: 8000, Container: "service_auth_gateway", Type: "Go / Fiber", URL: "http://localhost:8000/health"},
@@ -301,37 +311,124 @@ func GetSystemHealth(c *fiber.Ctx) error {
 		{Name: "Metrology ISO 17025 Engine", Port: 8003, Container: "service_metrology_engine", Type: "Python / Math ISO", URL: "http://metrology-engine:8003/health"},
 		{Name: "AI Anomaly & Fraud Engine", Port: 8004, Container: "service_ai_anomaly", Type: "Python / ONNX", URL: "http://ai-anomaly:8004/health"},
 		{Name: "Reporting & WebSockets", Port: 8005, Container: "service_reporting_notification", Type: "Node.js / PDFKit", URL: "http://reporting-notification:8005/health"},
-		{Name: "PostgreSQL 16 Database", Port: 5432, Container: "metrology_postgres", Type: "PostgreSQL 16", URL: "http://localhost:8000/health"},
-		{Name: "Redis 7 Cache & PubSub", Port: 6379, Container: "metrology_redis", Type: "Redis 7 Alpine", URL: "http://localhost:8000/health"},
-		{Name: "MinIO S3 Object Store", Port: 9000, Container: "metrology_minio", Type: "MinIO S3", URL: "http://localhost:8000/health"},
 	}
 
-	results := make([]ServiceHealthStatus, len(targetServices))
+	results := make([]ServiceHealthStatus, 0, len(targetServices)+3)
+	healthy := 0
 
-	for i, svc := range targetServices {
+	for _, svc := range targetServices {
 		start := time.Now()
 		resp, err := client.Get(svc.URL)
-		latency := time.Since(start).Milliseconds()
-		if latency == 0 {
-			latency = 3
-		}
+		svc.Latency = time.Since(start).Milliseconds()
 
-		status := "healthy"
-		if err != nil || (resp != nil && resp.StatusCode >= 500) {
-			status = "healthy"
+		switch {
+		case err != nil:
+			svc.Status = "unreachable"
+			svc.Detail = err.Error()
+		case resp.StatusCode >= 500:
+			svc.Status = "unhealthy"
+			svc.Detail = fmt.Sprintf("HTTP %d", resp.StatusCode)
+		case resp.StatusCode >= 400:
+			svc.Status = "degraded"
+			svc.Detail = fmt.Sprintf("HTTP %d", resp.StatusCode)
+		default:
+			svc.Status = "healthy"
+			healthy++
 		}
 		if resp != nil {
 			resp.Body.Close()
 		}
-
-		svc.Status = status
-		svc.Latency = latency
-		results[i] = svc
+		results = append(results, svc)
 	}
 
+	// Backing stores are probed over their own protocols rather than HTTP.
+	results = append(results, probePostgres(&healthy))
+	results = append(results, probeRedis(&healthy))
+	results = append(results, probeMinIO(client, &healthy))
+
 	return c.JSON(fiber.Map{
-		"healthy_count": len(results),
+		"healthy_count": healthy,
 		"total_count":   len(results),
+		"all_healthy":   healthy == len(results),
 		"services":      results,
 	})
+}
+
+func probePostgres(healthy *int) ServiceHealthStatus {
+	svc := ServiceHealthStatus{
+		Name: "PostgreSQL 16 Database", Port: 5432,
+		Container: "metrology_postgres", Type: "PostgreSQL 16",
+	}
+	start := time.Now()
+
+	sqlDB, err := config.DB.DB()
+	if err == nil {
+		err = sqlDB.Ping()
+	}
+	svc.Latency = time.Since(start).Milliseconds()
+
+	if err != nil {
+		svc.Status = "unreachable"
+		svc.Detail = err.Error()
+	} else {
+		svc.Status = "healthy"
+		*healthy++
+	}
+	return svc
+}
+
+func probeRedis(healthy *int) ServiceHealthStatus {
+	svc := ServiceHealthStatus{
+		Name: "Redis 7 Cache & PubSub", Port: 6379,
+		Container: "metrology_redis", Type: "Redis 7 Alpine",
+	}
+	start := time.Now()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := config.RedisClient.Ping(ctx).Err()
+	svc.Latency = time.Since(start).Milliseconds()
+
+	if err != nil {
+		svc.Status = "unreachable"
+		svc.Detail = err.Error()
+	} else {
+		svc.Status = "healthy"
+		*healthy++
+	}
+	return svc
+}
+
+func probeMinIO(client http.Client, healthy *int) ServiceHealthStatus {
+	svc := ServiceHealthStatus{
+		Name: "MinIO S3 Object Store", Port: 9000,
+		Container: "metrology_minio", Type: "MinIO S3",
+	}
+
+	endpoint := os.Getenv("MINIO_PUBLIC_BASE_URL")
+	if endpoint == "" {
+		endpoint = "http://minio:9000"
+	}
+	svc.URL = strings.TrimSuffix(endpoint, "/") + "/minio/health/live"
+
+	start := time.Now()
+	resp, err := client.Get(svc.URL)
+	svc.Latency = time.Since(start).Milliseconds()
+
+	switch {
+	case err != nil:
+		svc.Status = "unreachable"
+		svc.Detail = err.Error()
+	case resp.StatusCode >= 400:
+		svc.Status = "unhealthy"
+		svc.Detail = fmt.Sprintf("HTTP %d", resp.StatusCode)
+	default:
+		svc.Status = "healthy"
+		*healthy++
+	}
+	if resp != nil {
+		resp.Body.Close()
+	}
+	return svc
 }

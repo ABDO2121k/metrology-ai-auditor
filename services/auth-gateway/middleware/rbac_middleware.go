@@ -4,25 +4,20 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func RequireRole(allowedRoles ...string) fiber.Handler {
+// RequireAuthenticated gates a route on a valid session rather than on a role.
+//
+// The platform runs on a single role, so authorisation collapses to
+// authentication: any signed-in user may perform any action. JWTMiddleware has
+// already validated the token by this point; this handler exists to catch a
+// route that was mounted without it, which would otherwise silently expose an
+// endpoint.
+func RequireAuthenticated() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		roleVal := c.Locals("role")
-		if roleVal == nil {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "Access denied: Role context missing",
+		if c.Locals("user_id") == nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Authentication required",
 			})
 		}
-
-		userRole := roleVal.(string)
-
-		for _, allowed := range allowedRoles {
-			if userRole == allowed {
-				return c.Next()
-			}
-		}
-
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Access denied: Insufficient permissions for role '" + userRole + "'",
-		})
+		return c.Next()
 	}
 }

@@ -1,5 +1,25 @@
 # Step 4: Ultra-Fast AI OCR & Document Parsing Microservice (`ocr-parsing`)
 
+> **Implementation note (v3.0, 2026-08-24)** — the shipped service differs from
+> this design document in three ways, all deliberate:
+>
+> 1. **RapidOCR (ONNX) replaced PaddleOCR.** Same ONNX runtime and comparable
+>    accuracy on these scans, with a far smaller image and no PaddlePaddle
+>    toolchain to build.
+> 2. **Rendering is bounded by pixel size, not DPI.** These certificates are
+>    scans on very large pages (1768x2500 pt), where `dpi=150` yields a 13.2 MB
+>    PNG *per page*. Pages are scaled to a 2000 px longest side and encoded
+>    JPEG (~250 KB/page) instead.
+> 3. **Table structure recovery is handled by the optional vision layer**, not
+>    PP-Structure. Where no vision key is configured, locally-reconstructed
+>    tables are reported with `conformity_status: "INDETERMINE"` because their
+>    column semantics cannot be resolved without headers.
+>
+> The actual module layout is `render.py`, `local_ocr.py`, `parsing.py`,
+> `vision.py`, `audit.py` and `ocr_engine.py`. See
+> [UPDATE_SUMMARY.md](../UPDATE_SUMMARY.md) and
+> [DEPLOYMENT_GUIDE_AI_OCR.md](../DEPLOYMENT_GUIDE_AI_OCR.md).
+
 ## 1. Objective & Scope
 
 Design and build the **Ultra-Fast AI OCR & Document Parsing Microservice** (`ocr-parsing`) in **Python (FastAPI)** powered by **PaddleOCR** and **PyMuPDF (FitZ)**.

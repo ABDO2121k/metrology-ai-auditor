@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react';
 import PasswordInput from '@/components/PasswordInput';
+import { api } from '@/lib/api';
 
 interface Props {
   isOpen: boolean;
@@ -36,23 +37,7 @@ export default function SelfServicePasswordModal({ isOpen, onClose, token }: Pro
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/auth/change-password', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword
-        })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Échec du changement de mot de passe');
-      }
+      await api.changePassword(currentPassword, newPassword);
 
       setMsg({ type: 'success', text: 'Votre mot de passe a été mis à jour avec succès !' });
       setCurrentPassword('');
@@ -63,7 +48,7 @@ export default function SelfServicePasswordModal({ isOpen, onClose, token }: Pro
         setMsg(null);
       }, 1500);
     } catch (err: any) {
-      setMsg({ type: 'error', text: err.message });
+      setMsg({ type: 'error', text: err?.message || 'Échec du changement de mot de passe' });
     } finally {
       setIsLoading(false);
     }

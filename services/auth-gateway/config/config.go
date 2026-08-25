@@ -113,20 +113,35 @@ func InitConfig() {
 }
 
 func seedDefaultUsers() {
-	adminUsername := os.Getenv("DEFAULT_ADMIN_USERNAME")
-	adminPassword := os.Getenv("DEFAULT_ADMIN_PASSWORD")
+	username := os.Getenv("DEFAULT_ADMIN_USERNAME")
+	password := os.Getenv("DEFAULT_ADMIN_PASSWORD")
 
-	if adminUsername == "" {
-		adminUsername = "fati_sadiki"
+	if username == "" {
+		username = "fati_sadiki"
 	}
-	if adminPassword == "" {
-		adminPassword = "fati2004@"
+	if password == "" {
+		password = "fati2004@"
 	}
 
-	seedSingleUser(adminUsername, adminPassword, "fati_sadiki@process-instruments.ma", "Fatima-Ezzahrae Sadiki", models.RoleAdministrator)
-	seedSingleUser("tech_fati", adminPassword, "tech_fati@process-instruments.ma", "Technicien Étalonneur", models.RoleTechnician)
-	seedSingleUser("val_fati", adminPassword, "val_fati@process-instruments.ma", "Responsable Validation Qualité", models.RoleValidator)
-	seedSingleUser("director_fati", adminPassword, "director_fati@process-instruments.ma", "Directeur du Laboratoire", models.RoleDirector)
+	// One account, one role. The technician carries every permission on the
+	// platform, so there is nothing left for the old per-role logins to do.
+	seedSingleUser(
+		username,
+		password,
+		"fati_sadiki@process-instruments.ma",
+		"Fatima-Ezzahrae Sadiki",
+		models.RoleTechnician,
+	)
+
+	// Any account left over from the previous four-role deployment would carry
+	// a role value the enum no longer accepts, which breaks every query that
+	// scans the users table. Migrate them onto the single role.
+	if err := DB.Exec(
+		"UPDATE users SET role = ?::user_role WHERE role::text <> ?",
+		string(models.RoleTechnician), string(models.RoleTechnician),
+	).Error; err != nil {
+		log.Printf("Role migration skipped: %v", err)
+	}
 }
 
 func seedSingleUser(username, password, email, fullName string, role models.UserRole) {

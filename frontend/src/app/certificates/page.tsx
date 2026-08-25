@@ -1,56 +1,61 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { 
-  FileSpreadsheet, RefreshCw, Search, CheckCircle2, Clock, 
-  AlertTriangle, Eye, Hash, Calendar, Upload, Trash2
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  FileSpreadsheet, RefreshCw, Search, CheckCircle2, Clock,
+  AlertTriangle, Eye, Hash, Calendar, Upload, Trash2, XCircle, Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
+import { api, Certificate } from '@/lib/api';
 
-interface Certificate {
-  id: string;
-  certificate_number: string;
-  original_filename: string;
-  file_path_s3: string;
-  file_hash_sha256: string;
-  status: string;
-  uploaded_by: string;
-  created_at: string;
-}
-
+/**
+ * Status presentation.
+ *
+ * These keys mirror the `certificate_status` enum exactly. The previous table
+ * listed statuses the database cannot produce (OCR_COMPLETE, PROCESSING,
+ * VALIDATED_NON_CONFORME) while omitting the ones it does, so most rows fell
+ * through to the "Pending OCR" default regardless of their real state.
+ */
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  PENDING_OCR: { 
-    label: 'Pending OCR', 
+  PENDING_OCR: {
+    label: 'En attente OCR',
     color: 'text-amber-400 bg-amber-500/15 border-amber-500/30',
-    icon: <Clock className="w-3 h-3" />
+    icon: <Clock className="w-3 h-3" />,
   },
-  PROCESSING: {
-    label: 'OCR Processed',
+  OCR_PROCESSING: {
+    label: 'Extraction en cours',
     color: 'text-blue-400 bg-blue-500/15 border-blue-500/30',
-    icon: <CheckCircle2 className="w-3 h-3" />
+    icon: <Loader2 className="w-3 h-3 animate-spin" />,
   },
-  OCR_COMPLETE: { 
-    label: 'OCR Complete', 
+  OCR_COMPLETED: {
+    label: 'Extraction terminée',
     color: 'text-cyan-400 bg-cyan-500/15 border-cyan-500/30',
-    icon: <CheckCircle2 className="w-3 h-3" />
+    icon: <CheckCircle2 className="w-3 h-3" />,
   },
-  VALIDATED_CONFORME: { 
-    label: 'Conforme ISO 17025', 
-    color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30',
-    icon: <CheckCircle2 className="w-3 h-3" />
-  },
-  VALIDATED_NON_CONFORME: { 
-    label: 'Non-Conforme', 
+  OCR_FAILED: {
+    label: 'Échec OCR',
     color: 'text-rose-400 bg-rose-500/15 border-rose-500/30',
-    icon: <AlertTriangle className="w-3 h-3" />
+    icon: <XCircle className="w-3 h-3" />,
   },
-  FLAGGED_ANOMALY: { 
-    label: 'Anomaly Detected', 
+  FLAGGED_ANOMALY: {
+    label: 'Anomalie détectée',
     color: 'text-orange-400 bg-orange-500/15 border-orange-500/30',
-    icon: <AlertTriangle className="w-3 h-3" />
+    icon: <AlertTriangle className="w-3 h-3" />,
+  },
+  VALIDATED_CONFORME: {
+    label: 'Conforme ISO 17025',
+    color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30',
+    icon: <CheckCircle2 className="w-3 h-3" />,
+  },
+  REJECTED_NON_CONFORME: {
+    label: 'Non-conforme',
+    color: 'text-rose-400 bg-rose-500/15 border-rose-500/30',
+    icon: <AlertTriangle className="w-3 h-3" />,
   },
 };
+
+const IN_PROGRESS = new Set(['PENDING_OCR', 'OCR_PROCESSING']);
 
 export default function CertificatesPage() {
   const { t } = useLanguage();
@@ -58,65 +63,88 @@ export default function CertificatesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [error, setError] = useState('');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    fetchCerts();
-  }, []);
-
-  const fetchCerts = async () => {
-    setIsLoading(true);
+  const fetchCerts = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setIsLoading(true);
+    setError('');
     try {
-      const token = localStorage.getItem('jwt_token');
-      const res = await fetch('http://localhost:8000/api/v1/certificates/', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCerts(Array.isArray(data) ? data : []);
-      }
-    } catch (e) {
-      console.error('Failed to fetch certificates:', e);
+      setCerts(await api.listCertificates());
+    } catch (e: any) {
+      setError(e?.message || 'Impossible de charger les certificats');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('confirmDelete') || 'Delete certificate?')) return;
-    try {
-      const token = localStorage.getItem('jwt_token');
-      const res = await fetch(`http://localhost:8000/api/v1/certificates/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        // refresh list
-        fetchCerts();
-      } else {
-        console.error('Failed to delete certificate, status:', res.status);
+  useEffect(() => {
+    fetchCerts();
+  }, [fetchCerts]);
+
+  // Extraction now runs in the background, so the registry refreshes itself
+  // while any certificate is still being processed, then stops.
+  useEffect(() => {
+    const busy = certs.some((c) => IN_PROGRESS.has(c.status));
+
+    if (busy && !pollRef.current) {
+      pollRef.current = setInterval(() => fetchCerts(false), 4000);
+    } else if (!busy && pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
       }
-    } catch (e) {
-      console.error('Failed to delete certificate:', e);
+    };
+  }, [certs, fetchCerts]);
+
+  const handleDelete = async (id: string, number: string) => {
+    if (!confirm(`${t('confirmDelete')}\n\n${number}`)) return;
+    try {
+      await api.deleteCertificate(id);
+      fetchCerts(false);
+    } catch (e: any) {
+      setError(e?.message || 'Suppression impossible');
     }
   };
 
-  const filtered = certs.filter(c => {
-    const matchSearch = !search || 
-      c.certificate_number?.toLowerCase().includes(search.toLowerCase()) ||
-      c.original_filename?.toLowerCase().includes(search.toLowerCase());
+  const handleReprocess = async (id: string) => {
+    try {
+      await api.reprocessCertificate(id);
+      fetchCerts(false);
+    } catch (e: any) {
+      setError(e?.message || 'Relance impossible');
+    }
+  };
+
+  const filtered = certs.filter((c) => {
+    const needle = search.toLowerCase();
+    const matchSearch =
+      !search ||
+      c.certificate_number?.toLowerCase().includes(needle) ||
+      c.original_filename?.toLowerCase().includes(needle) ||
+      c.client_name?.toLowerCase().includes(needle);
     const matchStatus = statusFilter === 'ALL' || c.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const statusCounts = certs.reduce((acc, c) => {
+  const counts = certs.reduce<Record<string, number>>((acc, c) => {
     acc[c.status] = (acc[c.status] || 0) + 1;
     return acc;
-  }, {} as Record<string, number>);
+  }, {});
+
+  const pending = (counts['PENDING_OCR'] || 0) + (counts['OCR_PROCESSING'] || 0);
+  const problems =
+    (counts['FLAGGED_ANOMALY'] || 0) +
+    (counts['REJECTED_NON_CONFORME'] || 0) +
+    (counts['OCR_FAILED'] || 0);
 
   return (
     <div className="space-y-6 py-2">
-
-      {/* Header */}
       <div className="glass-panel p-6 rounded-3xl border border-slate-800 flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
@@ -136,15 +164,21 @@ export default function CertificatesPage() {
             <Upload className="w-3.5 h-3.5" /> {t('navUpload')}
           </Link>
           <button
-            onClick={fetchCerts}
+            onClick={() => fetchCerts()}
             className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 transition"
+            title={t('btnRefresh')}
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
-      {/* KPI Row */}
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" /> {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-1">
           <p className="text-[10px] text-slate-400 uppercase font-bold">{t('certsTotal')}</p>
@@ -152,21 +186,20 @@ export default function CertificatesPage() {
         </div>
         <div className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-1">
           <p className="text-[10px] text-emerald-400 uppercase font-bold">{t('certsConforme')}</p>
-          <p className="text-2xl font-extrabold text-emerald-400">{statusCounts['VALIDATED_CONFORME'] || 0}</p>
+          <p className="text-2xl font-extrabold text-emerald-400">
+            {counts['VALIDATED_CONFORME'] || 0}
+          </p>
         </div>
         <div className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-1">
           <p className="text-[10px] text-amber-400 uppercase font-bold">{t('certsPending')}</p>
-          <p className="text-2xl font-extrabold text-amber-400">{statusCounts['PENDING_OCR'] || 0}</p>
+          <p className="text-2xl font-extrabold text-amber-400">{pending}</p>
         </div>
         <div className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-1">
           <p className="text-[10px] text-rose-400 uppercase font-bold">{t('certsAnomaly')}</p>
-          <p className="text-2xl font-extrabold text-rose-400">
-            {(statusCounts['VALIDATED_NON_CONFORME'] || 0) + (statusCounts['FLAGGED_ANOMALY'] || 0)}
-          </p>
+          <p className="text-2xl font-extrabold text-rose-400">{problems}</p>
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-48">
           <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5 rtl:left-auto rtl:right-3" />
@@ -185,40 +218,39 @@ export default function CertificatesPage() {
           className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs outline-none focus:border-cyan-500"
         >
           <option value="ALL">{t('certsFilterAll')}</option>
-          <option value="PENDING_OCR">PENDING_OCR</option>
-          <option value="PROCESSING">PROCESSING</option>
-          <option value="OCR_COMPLETE">OCR_COMPLETE</option>
-          <option value="VALIDATED_CONFORME">CONFORME</option>
-          <option value="VALIDATED_NON_CONFORME">NON-CONFORME</option>
-          <option value="FLAGGED_ANOMALY">ANOMALY</option>
+          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+            <option key={key} value={key}>
+              {cfg.label}
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* Table */}
       <div className="glass-panel rounded-3xl border border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left rtl:text-right">
             <thead className="bg-slate-950/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
               <tr>
                 <th className="p-4">{t('certColNumber')}</th>
-                <th className="p-4">{t('certColFilename')}</th>
+                <th className="p-4">{t('certColClient')}</th>
                 <th className="p-4">{t('certColStatus')}</th>
+                <th className="p-4">{t('certColQuality')}</th>
                 <th className="p-4">{t('certColHash')}</th>
                 <th className="p-4">{t('certColDate')}</th>
                 <th className="p-4 text-right rtl:text-left">{t('tableActions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {isLoading ? (
+              {isLoading && certs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                  <td colSpan={7} className="p-8 text-center text-slate-500">
                     <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
                     {t('certsLoading')}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-10 text-center text-slate-500">
+                  <td colSpan={7} className="p-10 text-center text-slate-500">
                     <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 text-slate-600" />
                     <p className="font-semibold">{t('certsEmpty')}</p>
                     <p className="text-[10px] mt-1">{t('certsEmptySub')}</p>
@@ -226,26 +258,62 @@ export default function CertificatesPage() {
                 </tr>
               ) : (
                 filtered.map((cert) => {
-                  const statusCfg = STATUS_CONFIG[cert.status] || STATUS_CONFIG['PENDING_OCR'];
+                  const cfg = STATUS_CONFIG[cert.status] || {
+                    label: cert.status,
+                    color: 'text-slate-400 bg-slate-500/15 border-slate-500/30',
+                    icon: <Clock className="w-3 h-3" />,
+                  };
                   return (
                     <tr key={cert.id} className="hover:bg-slate-800/30 transition">
                       <td className="p-4">
                         <span className="font-mono font-bold text-cyan-300">
-                          {cert.certificate_number || `CERT-${cert.id.slice(0, 8)}`}
+                          {cert.certificate_number}
                         </span>
+                        <div className="text-[10px] text-slate-500 truncate max-w-[180px]">
+                          {cert.original_filename}
+                        </div>
                       </td>
-                      <td className="p-4 text-slate-300 max-w-[180px] truncate">
-                        {cert.original_filename}
+                      <td className="p-4 text-slate-300 max-w-[160px] truncate">
+                        {cert.client_name || '—'}
+                        <div className="text-[10px] text-slate-500 truncate">
+                          {cert.instrument_name || ''}
+                        </div>
                       </td>
                       <td className="p-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 w-fit ${statusCfg.color}`}>
-                          {statusCfg.icon} {cert.status}
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 w-fit ${cfg.color}`}
+                          title={cert.ocr_error || undefined}
+                        >
+                          {cfg.icon} {cfg.label}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        {cert.extraction_quality ? (
+                          <span
+                            className={`text-[10px] font-bold ${
+                              cert.extraction_quality === 'EXCELLENT' || cert.extraction_quality === 'HIGH'
+                                ? 'text-emerald-400'
+                                : cert.extraction_quality === 'MEDIUM'
+                                ? 'text-amber-400'
+                                : 'text-rose-400'
+                            }`}
+                          >
+                            {cert.extraction_quality}
+                            {cert.ocr_confidence != null && (
+                              <span className="text-slate-500 font-normal">
+                                {' '}
+                                ({Math.round(cert.ocr_confidence * 100)}%)
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
                       </td>
                       <td className="p-4 font-mono text-slate-500 text-[10px]">
                         <div className="flex items-center gap-1">
                           <Hash className="w-3 h-3" />
-                          {cert.file_hash_sha256?.slice(0, 12)}...
+                          {cert.file_hash_sha256?.slice(0, 10)}…
                         </div>
                       </td>
                       <td className="p-4 text-slate-400">
@@ -254,7 +322,8 @@ export default function CertificatesPage() {
                           {cert.created_at ? new Date(cert.created_at).toLocaleDateString('fr-MA') : '—'}
                         </div>
                       </td>
-                      <td className="p-4 text-right rtl:text-left flex items-center justify-end gap-2">
+                      <td className="p-4">
+                        <div className="flex items-center justify-end rtl:justify-start gap-2">
                           <Link
                             href={`/certificates/${cert.id}`}
                             className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 transition"
@@ -262,14 +331,24 @@ export default function CertificatesPage() {
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </Link>
+                          {(cert.status === 'OCR_FAILED' || cert.status === 'OCR_COMPLETED') && (
+                            <button
+                              onClick={() => handleReprocess(cert.id)}
+                              className="p-2 rounded-xl bg-slate-800 hover:bg-amber-500/20 text-slate-400 hover:text-amber-400 transition"
+                              title={t('certReprocessBtn')}
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleDelete(cert.id)}
-                            className="p-2 rounded-xl bg-rose-500/5 hover:bg-rose-500/10 text-rose-400 transition"
+                            onClick={() => handleDelete(cert.id, cert.certificate_number)}
+                            className="p-2 rounded-xl bg-rose-500/5 hover:bg-rose-500/15 text-rose-400 transition"
                             title={t('certRemoveBtn')}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                        </td>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
@@ -278,7 +357,6 @@ export default function CertificatesPage() {
           </table>
         </div>
       </div>
-
     </div>
   );
 }

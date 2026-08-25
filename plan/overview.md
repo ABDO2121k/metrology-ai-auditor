@@ -1,5 +1,11 @@
 # System Overview: Intelligent Metrological Validation & Anomaly Detection Platform
 
+> **v3.0 note (2026-08-24)** — two design changes since this overview was
+> written: the OCR service was rebuilt around a hybrid local+vision pipeline,
+> and the four roles were collapsed into a single `TECHNICIAN` role that does
+> everything. See [UPDATE_SUMMARY.md](../UPDATE_SUMMARY.md) for the details and
+> measured results.
+
 ## 1. Executive Summary & Vision
 
 The **Process Instruments Intelligent Validation Platform** is an enterprise-grade, microservice-based AI application engineered for the automated verification, metrological audit, and anomaly detection of calibration certificates and verification reports.
@@ -59,7 +65,7 @@ To achieve maximum throughput, sub-second certificate verification, ultra-low me
 | :--- | :--- | :--- | :--- |
 | **API Gateway & Auth** | Django Monolith | **Go (Fiber v2 / Gin)** | **10x-50x faster** than Django/Flask. Sub-millisecond routing, zero-allocation memory pool, native concurrency. |
 | **Primary Storage** | Local Disk / Django Media | **MinIO S3-Compatible Object Store** | Distributed, high concurrency stream uploads with automatic SHA-256 deduplication and bucket lifecycle rules. |
-| **OCR & Table Extraction**| Tesseract OCR / pdfplumber | **PaddleOCR + RapidOCR + PyMuPDF (FitZ)** | **5x-10x faster execution**, GPU/CPU SIMD optimized, superior table grid detection & multilingual support over Tesseract. |
+| **OCR & Table Extraction**| Tesseract OCR / pdfplumber | **RapidOCR (ONNX) + PyMuPDF, optional vision refinement** | Parallel page OCR; pages bounded to 2000px/JPEG (~250KB vs 13MB PNG at 150dpi on these scans). Two independent readings cross-checked to catch hallucination. |
 | **Metrological Rule Engine**| Python sequential loops | **Go / Python Numba Vectorized Engine** | Microsecond execution of math formulas ($Erreur$, $Correction$, $EMT$, $Hysteresis$). |
 | **AI Anomaly Detection** | Heavy TensorFlow Monolith | **LightGBM + PyTorch ONNX Runtime + IsolationForest** | Low memory footprint (<200MB), ONNX C++ execution backend for **<15ms inference latency**. |
 | **Reporting & Webhooks** | Synchronous Python script | **Go / Node.js (Fastify) + BullMQ / Redis Queue** | Asynchronous background processing, PDF generation via Chromium headless stream, instant WebSockets. |
@@ -99,7 +105,7 @@ The platform evaluates every certificate against strict mathematical and normati
 
 1. **`auth-gateway-service` (Port 8000)**: Authentication, RBAC (Admin, Technician, Validator), JWT token verification, dynamic route proxying.
 2. **`document-ingestion-service` (Port 8001)**: PDF upload, file hashing (SHA-256), MinIO object storage (`metrology-certificates` bucket), raw document metadata management.
-3. **`ocr-parsing-service` (Port 8002)**: PDF page rasterization, PaddleOCR text extraction, table layout recognition, key-value pair parsing.
+3. **`ocr-parsing-service` (Port 8002)**: Bounded page rasterization, RapidOCR text extraction, deterministic French field parsing, optional cross-checked vision refinement, ISO 17025 audit.
 4. **`metrology-engine-service` (Port 8003)**: ISO 17025 rules, error recalculation, tolerance verification, environmental range verification.
 5. **`ai-anomaly-service` (Port 8004)**: Isolation Forest & LightGBM inference, anomaly scoring, fraud detection, statistical drift check.
 6. **`reporting-service` (Port 8005)**: PDF audit report generation (saved to MinIO `audit-reports` bucket), email notifications, WebSocket event distribution.

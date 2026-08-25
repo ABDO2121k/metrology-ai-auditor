@@ -1,5 +1,12 @@
 # Step 2: API Gateway & Authentication Microservice (`auth-gateway`)
 
+> **Implementation note (v3.0, 2026-08-24)** — the four-role RBAC model
+> described below has been collapsed to a **single `TECHNICIAN` role** that
+> carries every permission. `RequireRole(...)` was replaced by
+> `RequireAuthenticated()`, the `user_role` enum now has one value, and account
+> creation coerces whatever role a client sends. Read every "role" rule below
+> as "authenticated user". See [UPDATE_SUMMARY.md](../UPDATE_SUMMARY.md).
+
 ## 1. Objective & Scope
 
 Build an ultra-fast, lightweight API Gateway and Authentication Microservice using **Go (Fiber v2)**.

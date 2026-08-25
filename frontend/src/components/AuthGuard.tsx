@@ -1,67 +1,52 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { getToken, getUser } from '@/lib/api';
 
-// Routes that don't require authentication
+// Routes reachable without a session.
 const PUBLIC_ROUTES = ['/', '/login'];
 
-// Route → required role(s). Empty array = any authenticated user
-const PROTECTED_ROUTES: Record<string, string[]> = {
-  '/dashboard': [],
-  '/upload': ['TECHNICIAN'],
-  '/certificates': ['TECHNICIAN', 'VALIDATOR'],
-  '/eval-5certs': ['VALIDATOR'],
-  '/reports': ['VALIDATOR', 'DIRECTOR'],
-  '/director-dashboard': ['DIRECTOR'],
-  '/admin/users': ['ADMINISTRATOR'],
-  '/admin/docker-metrics': ['ADMINISTRATOR'],
-};
-
+/**
+ * Gate on authentication only.
+ *
+ * The platform runs on a single role: every signed-in user is a technician
+ * with full rights, so there is no per-route role table to consult any more.
+ *
+ * Children are held back until the check completes. Rendering them first and
+ * redirecting afterwards briefly exposed protected pages to signed-out
+ * visitors, and fired their data requests with no token attached.
+ */
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [checked, setChecked] = useState(false);
+
+  const isPublic = PUBLIC_ROUTES.includes(pathname);
 
   useEffect(() => {
-    const token = localStorage.getItem('jwt_token');
-    const userStr = localStorage.getItem('jwt_user');
+    if (isPublic) {
+      setChecked(true);
+      return;
+    }
 
-    // Allow public routes always
-    if (PUBLIC_ROUTES.includes(pathname)) return;
-
-    // No token → redirect to login
-    if (!token || !userStr) {
+    if (!getToken() || !getUser()) {
       router.replace('/login');
       return;
     }
 
-    // Parse user
-    let user: any = null;
-    try {
-      user = JSON.parse(userStr);
-    } catch {
-      router.replace('/login');
-      return;
-    }
+    setChecked(true);
+  }, [pathname, router, isPublic]);
 
-    const role: string = user?.role || '';
-
-    // Find if current route has role restrictions
-    // Match exact route or prefix (e.g. /admin/users matches /admin/*)
-    const matchedRoute = Object.keys(PROTECTED_ROUTES).find((r) =>
-      pathname === r || pathname.startsWith(r + '/')
+  if (!checked) {
+    return (
+      <div className="flex items-center justify-center py-24 text-slate-400">
+        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+        <span className="text-xs font-semibold">Vérification de la session…</span>
+      </div>
     );
-
-    if (matchedRoute) {
-      const allowedRoles = PROTECTED_ROUTES[matchedRoute];
-      // If roles array is non-empty, check membership
-      if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
-        // Unauthorized role → redirect to their dashboard
-        router.replace('/dashboard');
-        return;
-      }
-    }
-  }, [pathname, router]);
+  }
 
   return <>{children}</>;
 }

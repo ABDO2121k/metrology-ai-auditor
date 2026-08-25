@@ -1,297 +1,300 @@
-# Deployment Guide: AI-Enhanced OCR Service with Status Management
+# Deployment Guide — Hybrid OCR Pipeline & Single-Role Platform
 
-## Overview
-This guide covers the deployment of the updated OCR service with integrated OpenAI validation, improved status management, and enhanced frontend navigation.
+**Version**: 3.0 · **Date**: 2026-08-24
 
-## Key Changes
-
-### 1. OCR Service Enhancements
-
-#### New Features:
-- **AI Validation**: Uses OpenAI GPT-4 to validate extracted data
-- **Quality Metrics**: Returns confidence scores (0-1 scale)
-  - `confidence_score`: OCR extraction accuracy
-  - `data_quality_score`: Completeness and format correctness
-  - `measurement_validity_score`: Anomaly detection in measurements
-- **Compliance Checking**: Validates against metrological standards
-- **Detailed Reports**: Critical issues, warnings, and improvement suggestions
-
-#### Status Flow Changes:
-```
-PDF Upload
-    ↓
-Initial: "OCR_PROCESSING"
-    ↓
-OCR Engine Extracts Data
-    ↓
-AI Validation (GPT-4)
-    ↓
-Final: "OCR_COMPLETED"
-    ↓
-Ready for Evaluation
-```
-
-**Important**: OCR runs only **once per PDF upload**, not repeatedly.
-
-### 2. Environment Configuration
-
-#### Required Environment Variables:
-
-```bash
-# OCR Service (Python/FastAPI)
-OPENAI_API_KEY=sk-xxxxxxxxxxxx  # Your OpenAI API key
-OCR_SERVICE_URL=http://ocr-parsing:8002
-MINIO_PUBLIC_BASE_URL=http://minio:9000
-PORT_OCR=8002
-
-# Document Ingestion Service (Go/Fiber)
-OCR_SERVICE_URL=http://ocr-parsing:8002
-DATABASE_URL=postgresql://metrology_admin:SecretPassword123!@postgres:5432/metrology_db
-```
-
-### 3. Dependencies
-
-#### OCR Service Requirements (Python):
-```
-fastapi==0.110.0
-uvicorn==0.28.0
-pydantic==2.6.4
-PyMuPDF==1.24.1
-rapidocr_onnxruntime==1.2.3
-requests==2.31.0
-openai==1.3.0          # NEW: AI validation
-redis==5.0.3
-python-multipart==0.0.9
-```
-
-### 4. Frontend Enhancements
-
-#### Dashboard Navigation:
-- **Authenticated users** now see a dashboard link (🏠 icon) in the navbar
-- Link appears next to password reset and logout buttons
-- Accessible via sidebar on desktop (always visible when logged in)
-- Accessible via navbar dashboard button on all screen sizes
-
-#### Authentication Guard:
-- Dashboard (`/dashboard`) requires authentication
-- All authenticated users can access dashboard
-- Role-based navigation automatically shows appropriate sections
-  - **TECHNICIAN**: Upload, Certificates
-  - **VALIDATOR**: Certificates, Eval-5Certs, Reports
-  - **DIRECTOR**: Director Dashboard, Reports
-  - **ADMINISTRATOR**: Users Management, Docker Metrics
-
-## Deployment Steps
-
-### Step 1: Update Environment Variables
-
-Create/update `.env` file or Docker secrets:
-
-```bash
-# For local development
-export OPENAI_API_KEY="your-openai-api-key"
-
-# For Docker
-docker-compose -f docker-compose.yml up --build
-```
-
-### Step 2: Rebuild Services
-
-```bash
-# Rebuild OCR service with OpenAI support
-cd services/ocr-parsing
-docker build -t metrology-ocr:latest .
-
-# Rebuild document-ingestion to use updated status flow
-cd ../document-ingestion
-docker build -t metrology-ingestion:latest .
-
-# Rebuild frontend (automatic with Next.js)
-cd ../../frontend
-docker build -t metrology-frontend:latest .
-```
-
-### Step 3: Deploy
-
-```bash
-# Update docker-compose to use new images
-docker-compose up -d
-
-# Verify services are healthy
-docker-compose ps
-
-# Check OCR service logs
-docker-compose logs ocr-parsing
-
-# Check document-ingestion logs
-docker-compose logs document-ingestion
-```
-
-### Step 4: Verify Deployment
-
-1. **Test Login**:
-   - Navigate to `http://localhost:3000/login`
-   - Use demo credentials:
-     - Admin: `fati_sadiki` / `fati2004@`
-     - Technician: `tech_fati` / `fati2004@`
-     - Validator: `val_fati` / `fati2004@`
-     - Director: `director_fati` / `fati2004@`
-
-2. **Test Dashboard Access**:
-   - After login, you should see dashboard link in navbar (🏠 icon)
-   - Click to navigate to dashboard
-   - Sidebar shows role-appropriate sections
-
-3. **Test PDF Upload**:
-   - Click "Upload" in sidebar (TECHNICIAN view)
-   - Upload a calibration certificate PDF
-   - Monitor status progression:
-     - Status shows "OCR_PROCESSING" during extraction
-     - After ~10-30 seconds, updates to "OCR_COMPLETED"
-     - AI validation scores appear in certificate details
-
-4. **Verify AI Validation**:
-   - In certificate details, look for `ai_validation` section
-   - Check: confidence_score, data_quality_score, measurement_validity_score
-   - Review any critical_issues or warnings
-
-## Response Format
-
-### OCR Response with AI Validation:
-
-```json
-{
-  "certificate_id": "abc-123-def",
-  "certificate_number": "ARRM13388-26",
-  "client_name": "CLIENT SARL",
-  "instrument_name": "Multimètre Numérique",
-  "instrument_serial": "12345",
-  "announced_page_count": 5,
-  "actual_extracted_pages": 5,
-  "issue_date": "2026-07-29",
-  "calibration_date": "2026-07-15",
-  "next_calibration_date": "2027-07-28",
-  "ambient_temperature": "23 ± 2 °C",
-  "ambient_humidity": "≤ 80 %HR",
-  "measurements": [...],
-  "ai_validation": {
-    "confidence_score": 0.92,
-    "data_quality_score": 0.88,
-    "measurement_validity_score": 0.85,
-    "critical_issues": [],
-    "warnings": ["Some measurements exceed EMT limits"],
-    "suggestions": ["Verify ambient humidity values"],
-    "validation_passed": true,
-    "validation_timestamp": "2026-08-10T14:23:45.123456"
-  }
-}
-```
-
-## Troubleshooting
-
-### Issue: OpenAI API Key Not Set
-**Error**: `OCR validation failed: No API key provided`
-**Solution**: 
-```bash
-export OPENAI_API_KEY="your-key-here"
-docker-compose restart ocr-parsing
-```
-
-### Issue: OCR Service Timeout
-**Error**: `OCR service returned 504: Gateway Timeout`
-**Solution**:
-- Increase timeout in `upload_handler.go`: currently `45 * time.Second`
-- Check OCR service logs: `docker-compose logs ocr-parsing`
-- Ensure PDFs are valid and <50MB
-
-### Issue: Dashboard Link Not Appearing
-**Error**: No dashboard icon in navbar when authenticated
-**Solution**:
-- Clear browser cache: `localStorage.clear()`
-- Verify JWT token is stored: Check DevTools > Application > Local Storage
-- Verify `jwt_user` object has `role` property
-
-### Issue: Authentication Failing
-**Error**: "Username or password incorrect" after UI changes
-**Solution**:
-- Verify user exists in database: `psql metrology_db -c "SELECT * FROM users;"`
-- Check auth-gateway logs: `docker-compose logs auth-gateway`
-- Ensure auth gateway is running: `docker-compose ps auth-gateway`
-
-## Performance Considerations
-
-### OCR Processing Time:
-- Simple PDFs (text-based): 2-5 seconds
-- Scanned PDFs (image-based): 5-15 seconds
-- Large PDFs (>50 pages): 15-30 seconds
-- AI validation (GPT-4): 2-5 seconds additional
-
-### Optimization Tips:
-1. Use `rapidocr_onnxruntime` for faster OCR (already included)
-2. Cache OpenAI responses for duplicate PDFs
-3. Process PDFs asynchronously if timeout issues occur
-4. Consider GPT-3.5-turbo for faster (less accurate) validation
-
-## Rollback Procedure
-
-If issues occur, revert to previous version:
-
-```bash
-# Revert docker-compose to use old images
-git checkout HEAD~1 docker-compose.yml
-
-# Stop current services
-docker-compose down
-
-# Deploy previous version
-docker-compose up -d
-
-# Verify old version works
-docker-compose logs
-```
-
-## Monitoring
-
-### Health Checks:
-
-```bash
-# OCR Service Health
-curl http://localhost:8002/health
-
-# Document Ingestion Health
-curl http://localhost:8001/health
-
-# Frontend Health
-curl http://localhost:3000
-
-# Database Connection
-docker-compose exec postgres psql -U metrology_admin -d metrology_db -c "SELECT 1"
-```
-
-### Logs to Monitor:
-
-```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f ocr-parsing
-docker-compose logs -f document-ingestion
-docker-compose logs -f frontend
-
-# Filter by level
-docker-compose logs -f --tail=50 ocr-parsing | grep ERROR
-```
-
-## Support & Documentation
-
-- **OpenAI API Docs**: https://platform.openai.com/docs
-- **FastAPI Docs**: http://localhost:8002/docs (Swagger UI)
-- **Frontend Build**: See `frontend/README.md`
-- **Database Schema**: See `scripts/init-db.sql`
+For *what* changed and why, see [UPDATE_SUMMARY.md](./UPDATE_SUMMARY.md). This
+document covers running it.
 
 ---
 
-**Deployment Date**: 2026-08-10
-**Version**: 2.0 (AI-Enhanced OCR)
-**Status**: ✓ Ready for Production
+## 1. How extraction works
+
+Every certificate goes through the same pipeline. Steps 1–3 and 5 always run;
+step 4 runs only when an API key is configured.
+
+```
+  1. RENDER      Each page is rasterised to a bounded longest side (2000 px)
+                 and encoded JPEG. Any existing PDF text layer is kept.
+
+  2. READ        Pages with a text layer use it directly. Scanned pages go
+                 through RapidOCR, several pages at a time. Every line keeps
+                 its bounding box, so the parser can tell a table row from a
+                 heading and pair a label with the cell beside or beneath it.
+
+  3. PARSE       Deterministic extraction of French metrology fields, dates,
+                 numbers, domain and measurement-table geometry. No network.
+
+  4. REFINE      (optional) A vision model receives the page images *and* the
+                 local OCR transcript, and returns structured JSON. Anything
+                 it reports that the transcript cannot corroborate is recorded
+                 as a disagreement rather than trusted silently.
+
+  5. AUDIT       Error, correction and guard band are recomputed from the
+                 extracted values — never copied from the certificate. That is
+                 what makes the math-discrepancy check meaningful.
+```
+
+### Running without an API key
+
+The service is fully functional with no key. RapidOCR reads every certificate,
+and header fields come back reliably. **Measurement tables are the limitation**:
+a locally-reconstructed table has no column headers, so whether the fourth
+number on a row is the EMT or the uncertainty depends on the form template.
+
+Rather than guess, the service marks such extractions
+`conformity_status: "INDETERMINE"` and recommends human review. The points are
+still shown; the verdict is withheld. On the five sample certificates, four
+yield no measurement points at all in this mode, and this is reported
+explicitly.
+
+Set `OPENAI_API_KEY` to have the vision layer read those tables with their
+column semantics intact.
+
+---
+
+## 2. Configuration
+
+### Required
+
+Nothing. The defaults in `app/.env` boot a working stack.
+
+### OCR
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `MOCK_OCR` | `false` | `true` serves fixture data for UI work. **Never enable in production** — it returns the same fake certificate for every upload. |
+| `OCR_RENDER_MAX_SIDE` | `2000` | Rasterisation ceiling in px. Raising it improves OCR on dense tables at roughly quadratic cost. |
+| `OCR_RENDER_RETRY_MAX_SIDE` | `3000` | Used for an automatic second pass when the first yields almost no text. |
+| `OCR_PAGE_WORKERS` | `4` | Pages OCR'd in parallel. ONNX releases the GIL, so this scales close to linearly. |
+| `OCR_MIN_LINE_SCORE` | `0.45` | Below this, a line is treated as scanner noise. |
+
+### Vision layer (optional)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `OPENAI_API_KEY` | *(empty)* | Empty disables the layer; the service stays fully functional. |
+| `OCR_VISION_MODEL` | `gpt-4o` | |
+| `OCR_VISION_TIMEOUT` | `90` | Seconds. |
+| `OCR_VISION_MAX_RETRIES` | `2` | |
+| `OCR_VISION_MAX_TOKENS` | `16000` | Headroom for long measurement tables. A truncated response is rejected, not parsed. |
+| `OCR_MAX_VISION_PAGES` | `8` | Ceiling on pages sent in one request. |
+
+### Audit thresholds (ISO 17025 / PR.ECE V9)
+
+| Variable | Default |
+|---|---|
+| `AUDIT_TEMP_NOMINAL` | `23.0` °C |
+| `AUDIT_TEMP_TOLERANCE` | `2.0` °C |
+| `AUDIT_HUMIDITY_MAX` | `80.0` %HR |
+| `AUDIT_MATH_TOLERANCE` | `0.0001` |
+| `AUDIT_HYSTERESIS_EMT_FRACTION` | `0.5` |
+
+### Frontend
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | **Inlined by Next.js at build time**, so it is passed as a Docker build arg, not only a runtime variable. Changing it requires a rebuild. |
+
+---
+
+## 3. Deploy
+
+The `user_role` enum changed from four values to one, so a fresh volume is
+required.
+
+```bash
+cd app/
+
+docker compose down -v          # drops the old enum and data
+docker compose up -d --build
+```
+
+Ten containers start: `postgres`, `redis`, `minio`, `createbuckets`,
+`auth-gateway`, `document-ingestion`, `ocr-parsing`, `metrology-engine`,
+`ai-anomaly`, `reporting-notification`, `web-frontend`.
+
+`document-ingestion` waits for `ocr-parsing` to report healthy, so the first
+upload is not lost to a cold service. The OCR container has a 90 s
+`start_period` to cover model warm-up.
+
+### With the vision layer
+
+```bash
+export OPENAI_API_KEY="sk-..."
+docker compose up -d --build
+```
+
+Or set it in `app/.env`.
+
+### Serving on a host other than localhost
+
+```bash
+export NEXT_PUBLIC_API_BASE_URL="http://your-host:8000"
+docker compose up -d --build web-frontend   # rebuild required
+```
+
+---
+
+## 4. Verify
+
+```bash
+# OCR service — reports which engines are actually available
+curl http://localhost:8002/health
+```
+
+```json
+{
+  "status": "healthy",
+  "service": "ocr-parsing",
+  "mock_mode": false,
+  "local_ocr_ready": true,
+  "local_ocr_error": null,
+  "vision_enabled": false,
+  "vision_model": null,
+  "warmup_complete": true
+}
+```
+
+Check `mock_mode` is `false` and `local_ocr_ready` is `true`. If
+`vision_enabled` is `false` and you expected otherwise, the key did not reach
+the container.
+
+```bash
+curl http://localhost:8001/health        # document-ingestion
+curl http://localhost:8000/health        # gateway
+docker compose ps                        # all healthy
+```
+
+### Exercise the pipeline directly
+
+Fastest way to see extraction quality without the UI:
+
+```bash
+cd app/
+python scripts/test_all_pdfs.py
+```
+
+It prints, per certificate: the extracted fields, measurement points, which
+engines ran, mean OCR confidence, render size, duration, and every blocking
+anomaly, warning and hint.
+
+### End-to-end through the UI
+
+1. Sign in at `http://localhost:3000/login` — `fati_sadiki` / `fati2004@`.
+2. **Upload** a certificate PDF. The response returns immediately (202) with
+   status `OCR_PROCESSING`.
+3. **Certificates** — the registry polls while any extraction is running and
+   stops once everything settles. Expect 30–90 s for a scanned multi-page
+   certificate.
+4. Open a certificate. The detail view shows the audit verdict, blocking
+   anomalies, conditions and traceability, the measurement table, and a
+   *Diagnostic d'extraction* panel with per-field provenance.
+
+---
+
+## 5. Status lifecycle
+
+```
+  upload
+    │
+    ▼
+  OCR_PROCESSING ──► OCR_COMPLETED       extraction stored, no blocking anomalies
+    │                     │
+    │                     └──► FLAGGED_ANOMALY   blocking anomalies found
+    │
+    └──► OCR_FAILED       extraction errored; retry with POST /:id/reprocess
+```
+
+`VALIDATED_CONFORME` and `REJECTED_NON_CONFORME` are set by the validation
+workflow, not by extraction.
+
+---
+
+## 6. API
+
+All routes require `Authorization: Bearer <token>`.
+
+| Method | Path | Notes |
+|---|---|---|
+| `POST` | `/api/v1/auth/login` | Public. |
+| `GET` | `/api/v1/auth/profile` | |
+| `PUT` | `/api/v1/auth/change-password` | |
+| `POST` | `/api/v1/certificates/upload` | multipart `file`. Returns **202**; OCR runs in the background. |
+| `GET` | `/api/v1/certificates/` | Supports `?status=` and `?search=`. Omits the OCR payload. |
+| `GET` | `/api/v1/certificates/stats` | Dashboard KPIs. |
+| `GET` | `/api/v1/certificates/:id` | |
+| `GET` | `/api/v1/certificates/:id/ocr` | Stored extraction + measurements + anomalies. **Never triggers OCR.** |
+| `POST` | `/api/v1/certificates/:id/reprocess` | Re-run extraction. |
+| `DELETE` | `/api/v1/certificates/:id` | Removes the row and the MinIO object. |
+| `GET` | `/api/v1/admin/users` | |
+| `POST` | `/api/v1/admin/users/register` | Role is assigned server-side. |
+| `PUT` | `/api/v1/admin/users/:id/reset-password` | |
+| `GET` | `/api/v1/admin/system/health` | Real per-service probe results. |
+| `POST` | `/api/v1/ocr/parse` | Direct extraction. Used by ingestion; also available for testing. |
+
+Because there is a single role, every authenticated user may call every route.
+
+---
+
+## 7. Troubleshooting
+
+**Every certificate comes back as `TTEC LAB` / `TACHYMETRE`**
+`MOCK_OCR` is enabled. Check `curl http://localhost:8002/health` → `mock_mode`.
+Set `MOCK_OCR=false` and restart `ocr-parsing`.
+
+**`vision_enabled: false` when a key is set**
+The variable did not reach the container. `docker compose config | grep -A2
+OPENAI` to confirm it is being substituted, then recreate the service.
+
+**Extraction finds fields but no measurement points**
+Expected in local-only mode for most templates — see §1. The certificate's
+warnings will say so explicitly. Set `OPENAI_API_KEY` for table extraction.
+
+**`local_ocr_ready: false`**
+RapidOCR failed to load; `local_ocr_error` carries the reason. Usually a missing
+`libgl1`/`libglib2.0-0` (both installed by the Dockerfile) or an architecture
+without an ONNX Runtime wheel.
+
+**Extraction is slow**
+~30–70 s per certificate on CPU is normal. Raise `OCR_PAGE_WORKERS` on a host
+with more cores. Lowering `OCR_RENDER_MAX_SIDE` is faster but costs accuracy.
+
+**Certificates stuck in `OCR_PROCESSING`**
+Extraction runs in-process, so a container restart mid-run leaves the row
+behind. `POST /api/v1/certificates/:id/reprocess`, or use the retry button in
+the registry.
+
+**Login fails**
+The gateway re-seeds `DEFAULT_ADMIN_USERNAME` / `DEFAULT_ADMIN_PASSWORD` on
+every start, so `fati_sadiki` / `fati2004@` should always work. Check
+`docker compose logs auth-gateway` for the seeding line. The bcrypt hashes in
+`init-db.sql` are placeholders and are overwritten at startup by design.
+
+**Frontend calls the wrong host**
+`NEXT_PUBLIC_API_BASE_URL` is baked in at build time. Rebuild `web-frontend`
+after changing it.
+
+**Old role values in the database**
+The gateway migrates them on start. If a query still fails on the enum, the
+volume predates the schema change — `docker compose down -v` and rebuild.
+
+---
+
+## 8. Performance reference
+
+Measured on the sample certificates, CPU only, `OCR_PAGE_WORKERS=6`:
+
+| Certificate | Pages | Render size | Duration |
+|---|---|---|---|
+| Certif 1 | 2 | 551 KB | ~39 s |
+| Certif 2 | 4 | 1,078 KB | ~50 s |
+| Certif 3 | 3 | 731 KB | ~37 s |
+| Certif 4 | 2 | 545 KB | ~31 s |
+| Certif 5 | 6 | 1,473 KB | ~68 s |
+
+Render sizes are the JPEG bytes actually produced. The previous PNG-at-150-dpi
+approach produced 13.2 MB *per page* on these documents.
+
+The vision layer adds roughly 5–15 s and $0.01–0.03 per certificate when
+enabled. Extraction runs once and is stored, so viewing a certificate afterwards
+costs nothing.

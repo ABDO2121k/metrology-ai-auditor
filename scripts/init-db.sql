@@ -6,15 +6,19 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 1. Custom Enum Types
+-- One role only: the technician performs every task on the platform
+-- (upload, OCR review, metrological validation, reporting, user admin).
 DROP TYPE IF EXISTS user_role CASCADE;
-CREATE TYPE user_role AS ENUM ('ADMINISTRATOR', 'TECHNICIAN', 'VALIDATOR', 'DIRECTOR');
+CREATE TYPE user_role AS ENUM ('TECHNICIAN');
 
 DROP TYPE IF EXISTS certificate_status CASCADE;
 CREATE TYPE certificate_status AS ENUM (
-    'PENDING_OCR', 
-    'PROCESSING', 
-    'VALIDATED_CONFORME', 
-    'REJECTED_NON_CONFORME', 
+    'PENDING_OCR',
+    'OCR_PROCESSING',
+    'OCR_COMPLETED',
+    'OCR_FAILED',
+    'VALIDATED_CONFORME',
+    'REJECTED_NON_CONFORME',
     'FLAGGED_ANOMALY'
 );
 
@@ -62,6 +66,14 @@ CREATE TABLE IF NOT EXISTS certificates (
     next_calibration_date DATE,
     ambient_temperature VARCHAR(50),
     ambient_humidity VARCHAR(50),
+    -- Full OCR/audit extraction, stored so the certificate detail view can
+    -- render results without re-running a 30s OCR pass on every page load.
+    ocr_payload JSONB,
+    ocr_confidence NUMERIC(5, 4),
+    extraction_quality VARCHAR(20),
+    conformity_status VARCHAR(30),
+    ocr_error TEXT,
+    ocr_completed_at TIMESTAMP WITH TIME ZONE,
     uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
     validated_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -74,6 +86,9 @@ CREATE TABLE IF NOT EXISTS measurement_points (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     certificate_id UUID REFERENCES certificates(id) ON DELETE CASCADE,
     point_index INT NOT NULL,
+    -- A measurement without its unit cannot be interpreted, let alone audited.
+    unit VARCHAR(20),
+    parameter VARCHAR(120),
     nominal_value NUMERIC(12, 4) NOT NULL,
     reference_value NUMERIC(12, 4) NOT NULL,
     measured_value NUMERIC(12, 4) NOT NULL,
@@ -104,12 +119,11 @@ CREATE TABLE IF NOT EXISTS anomaly_audit_logs (
 -- SEED INITIAL DATA (BCRYPT HASHES)
 -- =========================================================
 
--- Seed Users (Bcrypt Password Hashes)
+-- Seed Users. The password_hash values below are placeholders: the
+-- auth-gateway re-hashes DEFAULT_ADMIN_PASSWORD into every seeded account on
+-- each start, so these never need to be valid bcrypt output.
 INSERT INTO users (id, username, email, password_hash, full_name, role) VALUES
-('ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'fati_sadiki', 'fati_sadiki@process-instruments.ma', '$2a$10$rC8d3.5F4mK0tqN3x0H5u.j5p3170425042504250425042504250', 'Fatima-Ezzahrae Sadiki', 'ADMINISTRATOR'),
-('b21c4e90-1234-41cd-8cb9-fe7bff7f4e68', 'tech_fati', 'tech_fati@process-instruments.ma', '$2a$10$rC8d3.5F4mK0tqN3x0H5u.j5p3170425042504250425042504250', 'Technicien Étalonneur', 'TECHNICIAN'),
-('c32d5f01-5678-41cd-8cb9-fe7bff7f4e69', 'val_fati', 'val_fati@process-instruments.ma', '$2a$10$rC8d3.5F4mK0tqN3x0H5u.j5p3170425042504250425042504250', 'Responsable Validation Qualité', 'VALIDATOR'),
-('d43e6a12-9012-41cd-8cb9-fe7bff7f4e70', 'director_fati', 'director_fati@process-instruments.ma', '$2a$10$rC8d3.5F4mK0tqN3x0H5u.j5p3170425042504250425042504250', 'Directeur du Laboratoire', 'DIRECTOR')
+('ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'fati_sadiki', 'fati_sadiki@process-instruments.ma', 'seeded-at-startup', 'Fatima-Ezzahrae Sadiki', 'TECHNICIAN')
 ON CONFLICT (username) DO NOTHING;
 
 -- Seed Sample Reference Standards
@@ -121,11 +135,11 @@ ON CONFLICT (code_identifier) DO NOTHING;
 
 -- Seed Sample Certificates Across 5 Models
 INSERT INTO certificates (id, certificate_number, original_filename, file_path_s3, file_hash_sha256, status, page_count, announced_page_count, client_name, instrument_name, instrument_serial, issue_date, calibration_date, next_calibration_date, ambient_temperature, ambient_humidity, uploaded_by, validated_by) VALUES
-('e1000000-0000-0000-0000-000000000001', 'ARRM13388-26', 'ARRM13388-26.pdf', 'metrology-certificates/ARRM13388-26.pdf', 'hash_sha256_cert1_arrm13388', 'VALIDATED_CONFORME', 2, 2, 'OCP Group', 'Resistor Box AOIP', 'SN-99812', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'b21c4e90-1234-41cd-8cb9-fe7bff7f4e68', 'c32d5f01-5678-41cd-8cb9-fe7bff7f4e69'),
-('e2000000-0000-0000-0000-000000000002', 'AETE04897-26', 'AETE04897-26.pdf', 'metrology-certificates/AETE04897-26.pdf', 'hash_sha256_cert2_aete04897', 'VALIDATED_CONFORME', 4, 4, 'ONEE Power', 'Pt100 Temperature Sensor', 'SN-44310', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'b21c4e90-1234-41cd-8cb9-fe7bff7f4e68', 'c32d5f01-5678-41cd-8cb9-fe7bff7f4e69'),
-('e3000000-0000-0000-0000-000000000003', 'ARTL05391-26/A', 'ARTL05391-26_A.pdf', 'metrology-certificates/ARTL05391-26_A.pdf', 'hash_sha256_cert3_artl05391', 'FLAGGED_ANOMALY', 3, 3, 'LafargeHolcim', 'Digital Multimeter Keysight', 'SN-77821', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'b21c4e90-1234-41cd-8cb9-fe7bff7f4e68', NULL),
-('e4000000-0000-0000-0000-000000000004', 'ARBI13361-26', 'ARBI13361-26.pdf', 'metrology-certificates/ARBI13361-26.pdf', 'hash_sha256_cert4_arbi13361', 'VALIDATED_CONFORME', 2, 2, 'Renault Tangier', 'High Precision Electrical Shunt', 'SN-11204', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'b21c4e90-1234-41cd-8cb9-fe7bff7f4e68', 'c32d5f01-5678-41cd-8cb9-fe7bff7f4e69'),
-('e5000000-0000-0000-0000-000000000005', 'AENS12791-26', 'AENS12791-26.pdf', 'metrology-certificates/AENS12791-26.pdf', 'hash_sha256_cert5_aens12791', 'VALIDATED_CONFORME', 6, 6, 'Cosumar SA', 'Multi-function Process Calibrator', 'SN-55619', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'b21c4e90-1234-41cd-8cb9-fe7bff7f4e68', 'c32d5f01-5678-41cd-8cb9-fe7bff7f4e69')
+('e1000000-0000-0000-0000-000000000001', 'ARRM13388-26', 'ARRM13388-26.pdf', 'metrology-certificates/ARRM13388-26.pdf', 'hash_sha256_cert1_arrm13388', 'VALIDATED_CONFORME', 2, 2, 'OCP Group', 'Resistor Box AOIP', 'SN-99812', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67'),
+('e2000000-0000-0000-0000-000000000002', 'AETE04897-26', 'AETE04897-26.pdf', 'metrology-certificates/AETE04897-26.pdf', 'hash_sha256_cert2_aete04897', 'VALIDATED_CONFORME', 4, 4, 'ONEE Power', 'Pt100 Temperature Sensor', 'SN-44310', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67'),
+('e3000000-0000-0000-0000-000000000003', 'ARTL05391-26/A', 'ARTL05391-26_A.pdf', 'metrology-certificates/ARTL05391-26_A.pdf', 'hash_sha256_cert3_artl05391', 'FLAGGED_ANOMALY', 3, 3, 'LafargeHolcim', 'Digital Multimeter Keysight', 'SN-77821', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', NULL),
+('e4000000-0000-0000-0000-000000000004', 'ARBI13361-26', 'ARBI13361-26.pdf', 'metrology-certificates/ARBI13361-26.pdf', 'hash_sha256_cert4_arbi13361', 'VALIDATED_CONFORME', 2, 2, 'Renault Tangier', 'High Precision Electrical Shunt', 'SN-11204', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67'),
+('e5000000-0000-0000-0000-000000000005', 'AENS12791-26', 'AENS12791-26.pdf', 'metrology-certificates/AENS12791-26.pdf', 'hash_sha256_cert5_aens12791', 'VALIDATED_CONFORME', 6, 6, 'Cosumar SA', 'Multi-function Process Calibrator', 'SN-55619', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67')
 ON CONFLICT (certificate_number) DO NOTHING;
 
 -- Seed Anomaly Audit Logs for AI Detection
@@ -139,3 +153,7 @@ ON CONFLICT DO NOTHING;
 CREATE INDEX IF NOT EXISTS idx_certs_status ON certificates(status);
 CREATE INDEX IF NOT EXISTS idx_certs_hash ON certificates(file_hash_sha256);
 CREATE INDEX IF NOT EXISTS idx_meas_cert ON measurement_points(certificate_id);
+CREATE INDEX IF NOT EXISTS idx_certs_created ON certificates(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_certs_uploader ON certificates(uploaded_by);
+CREATE INDEX IF NOT EXISTS idx_certs_ocr_payload ON certificates USING GIN (ocr_payload);
+CREATE INDEX IF NOT EXISTS idx_anomaly_cert ON anomaly_audit_logs(certificate_id);

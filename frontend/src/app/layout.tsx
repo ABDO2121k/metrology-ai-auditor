@@ -1,72 +1,77 @@
 'use client';
 
 import './globals.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { 
-  ShieldCheck, 
-  LayoutDashboard, 
-  Upload, 
-  FileSpreadsheet, 
-  Layers, 
-  FileCheck, 
-  Users, 
+import {
+  ShieldCheck,
+  LayoutDashboard,
+  Upload,
+  FileSpreadsheet,
+  Users,
   Server,
-  KeyRound, 
-  LogOut, 
-  PieChart, 
+  KeyRound,
+  LogOut,
   Globe,
-  LogIn
+  LogIn,
 } from 'lucide-react';
 import { LanguageProvider, useLanguage } from '@/context/LanguageContext';
 import SelfServicePasswordModal from '@/components/SelfServicePasswordModal';
 import AuthGuard from '@/components/AuthGuard';
+import { AuthUser, clearSession, getToken, getUser } from '@/lib/api';
+
+/**
+ * Navigation for the single technician role.
+ *
+ * Every signed-in user sees the same sections: the role no longer partitions
+ * the app. Links to /eval-5certs, /reports and /director-dashboard were
+ * removed because no such pages exist — they rendered a 404 on click.
+ */
+const NAV_ITEMS = [
+  { href: '/dashboard', labelKey: 'navHome', Icon: LayoutDashboard, accent: 'text-cyan-400' },
+  { href: '/upload', labelKey: 'navUpload', Icon: Upload, accent: 'text-cyan-400' },
+  { href: '/certificates', labelKey: 'navCerts', Icon: FileSpreadsheet, accent: 'text-emerald-400' },
+  { href: '/admin/users', labelKey: 'navUsers', Icon: Users, accent: 'text-purple-400' },
+  { href: '/admin/docker-metrics', labelKey: 'navHealth', Icon: Server, accent: 'text-amber-400' },
+];
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { lang, dir, setLang, t } = useLanguage();
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string>('');
   const [isPwdModalOpen, setIsPwdModalOpen] = useState(false);
 
-  useEffect(() => {
-    const savedToken = localStorage.getItem('jwt_token');
-    const savedUser = localStorage.getItem('jwt_user');
+  const syncSession = useCallback(() => {
+    setUser(getUser());
+    setToken(getToken());
+  }, []);
 
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {}
-    } else {
-      setUser(null);
-      setToken('');
-    }
-  }, [pathname]);
+  useEffect(() => {
+    syncSession();
+    // Keep the header in step when another tab signs in or out.
+    window.addEventListener('storage', syncSession);
+    return () => window.removeEventListener('storage', syncSession);
+  }, [pathname, syncSession]);
 
   const handleLogout = () => {
-    localStorage.removeItem('jwt_token');
-    localStorage.removeItem('jwt_user');
+    clearSession();
     setUser(null);
     setToken('');
     router.push('/login');
   };
 
-  // HIDE SIDEBAR ON LANDING PAGE ('/') AND LOGIN PAGE ('/login')
-  const hideSidebar = pathname === '/' || pathname === '/login';
-  const role = user?.role || 'GUEST';
+  const isSignedIn = Boolean(user);
+  // The landing and login pages are full-bleed marketing/auth surfaces.
+  const hideSidebar = pathname === '/' || pathname === '/login' || !isSignedIn;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0a0f1d] text-slate-100" dir={dir}>
-      
-      {/* Topbar Navigation */}
       <header className="sticky top-0 z-40 glass-panel border-b border-slate-800/80 px-6 py-3.5 flex justify-between items-center">
-        
-        {/* Left Branding */}
-        <Link href="/" className="flex items-center space-x-3 rtl:space-x-reverse group">
+        <Link href={isSignedIn ? '/dashboard' : '/'} className="flex items-center space-x-3 rtl:space-x-reverse group">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/25 group-hover:scale-105 transition">
             <ShieldCheck className="w-6 h-6 text-white" />
           </div>
@@ -83,46 +88,40 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </Link>
 
-        {/* Right Action Controls & Language Selector */}
         <div className="flex items-center space-x-4 rtl:space-x-reverse">
-          
-          {/* Language Selector Dropdown */}
           <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl p-1 text-xs">
             <Globe className="w-4 h-4 text-cyan-400 mx-2" />
-            <button
-              onClick={() => setLang('fr')}
-              className={`px-2 py-1 rounded-lg font-bold transition ${lang === 'fr' ? 'bg-cyan-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            >
-              FR
-            </button>
-            <button
-              onClick={() => setLang('en')}
-              className={`px-2 py-1 rounded-lg font-bold transition ${lang === 'en' ? 'bg-cyan-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            >
-              EN
-            </button>
-            <button
-              onClick={() => setLang('ar')}
-              className={`px-2 py-1 rounded-lg font-bold transition ${lang === 'ar' ? 'bg-cyan-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            >
-              عربي
-            </button>
+            {(['fr', 'en', 'ar'] as const).map((code) => (
+              <button
+                key={code}
+                onClick={() => setLang(code)}
+                className={`px-2 py-1 rounded-lg font-bold transition ${
+                  lang === code ? 'bg-cyan-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {code === 'ar' ? 'عربي' : code.toUpperCase()}
+              </button>
+            ))}
           </div>
 
-          {/* User Logged In Controls OR Login Button */}
-          {user ? (
+          {isSignedIn ? (
             <div className="flex items-center space-x-3 rtl:space-x-reverse">
               <div className="text-right rtl:text-left">
-                <p className="text-xs font-bold text-white">{user.full_name || user.username}</p>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  user.role === 'ADMINISTRATOR' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
-                  user.role === 'DIRECTOR' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                  user.role === 'VALIDATOR' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                  'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                }`}>
-                  {user.role}
+                <p className="text-xs font-bold text-white">{user?.full_name || user?.username}</p>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  {t('role_TECHNICIAN')}
                 </span>
               </div>
+
+              {/* Dashboard shortcut. This previously sat in the signed-out
+                  branch, so it appeared only to visitors who could not use it. */}
+              <Link
+                href="/dashboard"
+                title={t('navHome')}
+                className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/30 transition"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+              </Link>
 
               <button
                 onClick={() => setIsPwdModalOpen(true)}
@@ -141,169 +140,58 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               </button>
             </div>
           ) : (
-            <div className="flex items-center space-x-3 rtl:space-x-reverse">
-              <Link
-                href="/dashboard"
-                className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/30 transition"
-                title="Go to Dashboard"
-              >
-                <LayoutDashboard className="w-4 h-4" />
-              </Link>
-              <Link 
-                href="/login"
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 flex items-center gap-2 transition"
-              >
-                <LogIn className="w-4 h-4" /> {t('loginBtn')}
-              </Link>
-            </div>
+            <Link
+              href="/login"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 flex items-center gap-2 transition"
+            >
+              <LogIn className="w-4 h-4" /> {t('loginBtn')}
+            </Link>
           )}
         </div>
       </header>
 
-      {/* Main Container with Dynamic Sidebar */}
       <div className="flex-1 flex">
-        
-        {/* Dynamic Sidebar (Hidden on Landing Page '/' and Login Page '/login') */}
         {!hideSidebar && (
-          <aside className="w-64 glass-panel border-r rtl:border-r-0 rtl:border-l border-slate-800/80 p-4 space-y-6 hidden md:block">
-            
-            <div className="space-y-1">
-              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('navHome')}</p>
-              <Link
-                href="/dashboard"
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                  pathname === '/dashboard' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
-                }`}
-              >
-                <LayoutDashboard className="w-4 h-4 text-cyan-400" /> {t('navHome')}
-              </Link>
-            </div>
-
-            {/* STRICT ROLE FILTERING: TECHNICIAN Portal Links */}
-            {role === 'TECHNICIAN' && (
-              <div className="space-y-1">
-                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('sidebarTechnicianPortal')}</p>
+          <aside className="w-64 glass-panel border-r rtl:border-r-0 rtl:border-l border-slate-800/80 p-4 space-y-1 hidden md:block">
+            <p className="px-3 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              {t('sidebarWorkspace')}
+            </p>
+            {NAV_ITEMS.map(({ href, labelKey, Icon, accent }) => {
+              const active = pathname === href || pathname.startsWith(`${href}/`);
+              return (
                 <Link
-                  href="/upload"
+                  key={href}
+                  href={href}
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                    pathname === '/upload' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                    active
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold'
+                      : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
                   }`}
                 >
-                  <Upload className="w-4 h-4 text-cyan-400" /> {t('navUpload')}
+                  <Icon className={`w-4 h-4 ${accent}`} /> {t(labelKey)}
                 </Link>
-                <Link
-                  href="/certificates"
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                    pathname === '/certificates' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
-                  }`}
-                >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" /> {t('navCerts')}
-                </Link>
-              </div>
-            )}
-
-            {/* STRICT ROLE FILTERING: VALIDATOR Portal Links */}
-            {role === 'VALIDATOR' && (
-              <div className="space-y-1">
-                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('sidebarValidatorPortal')}</p>
-                <Link
-                  href="/certificates"
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                    pathname === '/certificates' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
-                  }`}
-                >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" /> {t('navCerts')}
-                </Link>
-                <Link
-                  href="/eval-5certs"
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                    pathname === '/eval-5certs' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
-                  }`}
-                >
-                  <Layers className="w-4 h-4 text-cyan-400" /> {t('nav5Certs')}
-                </Link>
-                <Link
-                  href="/reports"
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                    pathname === '/reports' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
-                  }`}
-                >
-                  <FileCheck className="w-4 h-4 text-cyan-400" /> {t('navReports')}
-                </Link>
-              </div>
-            )}
-
-            {/* STRICT ROLE FILTERING: DIRECTOR Portal Links */}
-            {role === 'DIRECTOR' && (
-              <div className="space-y-1">
-                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('sidebarDirectorPortal')}</p>
-                <Link
-                  href="/director-dashboard"
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                    pathname === '/director-dashboard' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
-                  }`}
-                >
-                  <PieChart className="w-4 h-4 text-amber-400" /> {t('navDirector')}
-                </Link>
-                <Link
-                  href="/reports"
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                    pathname === '/reports' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
-                  }`}
-                >
-                  <FileCheck className="w-4 h-4 text-cyan-400" /> {t('navReports')}
-                </Link>
-              </div>
-            )}
-
-            {/* STRICT ROLE FILTERING: ADMINISTRATOR Portal Links ONLY */}
-            {role === 'ADMINISTRATOR' && (
-              <div className="space-y-1">
-                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('sidebarAdminPortal')}</p>
-                <Link
-                  href="/admin/users"
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                    pathname === '/admin/users' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
-                  }`}
-                >
-                  <Users className="w-4 h-4 text-purple-400" /> {t('navUsers')}
-                </Link>
-                <Link
-                  href="/admin/docker-metrics"
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                    pathname === '/admin/docker-metrics' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
-                  }`}
-                >
-                  <Server className="w-4 h-4 text-cyan-400" /> {t('navHealth')}
-                </Link>
-              </div>
-            )}
-
+              );
+            })}
           </aside>
         )}
 
-        {/* Main Content Workspace — wrapped with AuthGuard */}
         <main className="flex-1 p-6 max-w-[1600px] w-full mx-auto">
           <AuthGuard>{children}</AuthGuard>
         </main>
-
       </div>
 
-      {/* Self-Service Password Modal */}
       <SelfServicePasswordModal
         isOpen={isPwdModalOpen}
         onClose={() => setIsPwdModalOpen(false)}
         token={token}
       />
 
-      {/* Footer */}
       <footer className="glass-panel border-t border-slate-800/80 px-6 py-4 text-center text-xs text-slate-500">
-        <div className="flex justify-between items-center max-w-[1600px] mx-auto">
+        <div className="flex flex-wrap gap-2 justify-between items-center max-w-[1600px] mx-auto">
           <span>© 2026 Process Instruments — Système Intelligent d'Audit Métrologique</span>
           <span>NM 2018 | ISO/IEC 17025:2017 | PR.ECE V9 | PRO.MDD V23</span>
         </div>
       </footer>
-
     </div>
   );
 }

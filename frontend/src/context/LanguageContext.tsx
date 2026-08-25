@@ -40,15 +40,10 @@ const translations: Record<Language, Record<string, string>> = {
     ctaDashboard: "Ouvrir mon Dashboard",
     
     // Role Chip & Title Translations
-    role_ADMINISTRATOR: "Administrateur Système",
-    role_TECHNICIAN: "Technicien Étalonneur",
-    role_VALIDATOR: "Responsable Validation Qualité",
-    role_DIRECTOR: "Directeur du Laboratoire",
+    // One role covers the whole platform.
+    role_TECHNICIAN: "Technicien Métrologue",
 
     name_fati_sadiki: "Fatima-Ezzahrae Sadiki",
-    name_tech_fati: "Technicien Étalonneur",
-    name_val_fati: "Responsable Validation Qualité",
-    name_director_fati: "Directeur du Laboratoire",
     
     // Stats & Admin Metrics
     statCerts: "Certificats Traités",
@@ -161,7 +156,23 @@ const translations: Record<Language, Record<string, string>> = {
     certColStatus: "Statut",
     certColHash: "SHA-256",
     certColDate: "Date Upload",
-    certViewBtn: "Voir détails"
+    certViewBtn: "Voir détails",
+    sidebarWorkspace: "Espace de travail",
+    loginDemoTitle: "Compte de démonstration",
+    loginDemoNote: "Un rôle unique donne accès à l'ensemble de la plateforme : dépôt, extraction OCR, audit métrologique et administration.",
+    adminSingleRoleNote: "Tous les comptes partagent le rôle Technicien Métrologue, qui donne accès à l'ensemble des fonctions.",
+    kpiPendingSub: "En file d'extraction",
+    kpiAnomaliesSub: "Anomalies bloquantes",
+    kpiPointsAudited: "Points de mesure audités",
+    kpiFlagged: "Certificats signalés",
+    kpiFailed: "Échecs d'extraction",
+    kpiFailedSub: "Relance possible",
+    dashboardRecent: "Activité récente",
+    certColClient: "Client / Instrument",
+    certColQuality: "Qualité OCR",
+    certReprocessBtn: "Relancer l'extraction",
+    certRemoveBtn: "Supprimer",
+    confirmDelete: "Supprimer définitivement ce certificat ?"
   },
   en: {
     // Topbar & Nav
@@ -190,15 +201,9 @@ const translations: Record<Language, Record<string, string>> = {
     ctaDashboard: "Go to Dashboard",
 
     // Role Chip & Title Translations
-    role_ADMINISTRATOR: "System Administrator",
-    role_TECHNICIAN: "Calibration Technician",
-    role_VALIDATOR: "Quality Validator",
-    role_DIRECTOR: "Laboratory Director",
+    role_TECHNICIAN: "Metrology Technician",
 
     name_fati_sadiki: "Fatima-Ezzahrae Sadiki",
-    name_tech_fati: "Calibration Technician",
-    name_val_fati: "Quality Validator Expert",
-    name_director_fati: "Laboratory Director",
     
     // Stats & Admin Metrics
     statCerts: "Certificates Processed",
@@ -311,7 +316,23 @@ const translations: Record<Language, Record<string, string>> = {
     certColStatus: "Status",
     certColHash: "SHA-256",
     certColDate: "Upload Date",
-    certViewBtn: "View details"
+    certViewBtn: "View details",
+    sidebarWorkspace: "Workspace",
+    loginDemoTitle: "Demo account",
+    loginDemoNote: "A single role grants access to the whole platform: upload, OCR extraction, metrological audit and administration.",
+    adminSingleRoleNote: "All accounts share the Metrology Technician role, which grants access to every feature.",
+    kpiPendingSub: "Queued for extraction",
+    kpiAnomaliesSub: "Blocking anomalies",
+    kpiPointsAudited: "Measurement points audited",
+    kpiFlagged: "Flagged certificates",
+    kpiFailed: "Extraction failures",
+    kpiFailedSub: "Can be retried",
+    dashboardRecent: "Recent activity",
+    certColClient: "Client / Instrument",
+    certColQuality: "OCR quality",
+    certReprocessBtn: "Re-run extraction",
+    certRemoveBtn: "Delete",
+    confirmDelete: "Permanently delete this certificate?",
   },
   ar: {
     // Topbar & Nav
@@ -340,15 +361,9 @@ const translations: Record<Language, Record<string, string>> = {
     ctaDashboard: "فتح لوحة التحكم",
 
     // Role Chip & Title Translations
-    role_ADMINISTRATOR: "مسؤول النظام",
-    role_TECHNICIAN: "فني معايرة",
-    role_VALIDATOR: "مسؤول الاعتماد والجودة",
-    role_DIRECTOR: "مدير المختبر",
+    role_TECHNICIAN: "فني القياس والمعايرة",
 
     name_fati_sadiki: "فاطمة الزهراء صديقي",
-    name_tech_fati: "فني معايرة معتمد",
-    name_val_fati: "خبير الاعتماد والجودة",
-    name_director_fati: "مدير المختبر الرئيسي",
     
     // Stats & Admin Metrics
     statCerts: "شهادة معالجة",
@@ -461,7 +476,23 @@ const translations: Record<Language, Record<string, string>> = {
     certColStatus: "الحالة",
     certColHash: "SHA-256",
     certColDate: "تاريخ الرفع",
-    certViewBtn: "عرض التفاصيل"
+    certViewBtn: "عرض التفاصيل",
+    sidebarWorkspace: "مساحة العمل",
+    loginDemoTitle: "حساب تجريبي",
+    loginDemoNote: "دور واحد يمنح الوصول إلى المنصة بالكامل: الرفع، الاستخراج الضوئي، التدقيق القياسي والإدارة.",
+    adminSingleRoleNote: "تشترك جميع الحسابات في دور فني القياس والمعايرة، الذي يمنح الوصول إلى كل الوظائف.",
+    kpiPendingSub: "في انتظار الاستخراج",
+    kpiAnomaliesSub: "حالات شاذة حاجبة",
+    kpiPointsAudited: "نقاط القياس المدققة",
+    kpiFlagged: "شهادات مُعلَّمة",
+    kpiFailed: "إخفاقات الاستخراج",
+    kpiFailedSub: "يمكن إعادة المحاولة",
+    dashboardRecent: "النشاط الأخير",
+    certColClient: "العميل / الجهاز",
+    certColQuality: "جودة الاستخراج",
+    certReprocessBtn: "إعادة الاستخراج",
+    certRemoveBtn: "حذف",
+    confirmDelete: "حذف هذه الشهادة نهائيًا؟"
   }
 };
 

@@ -105,6 +105,9 @@ services:
       REDIS_URL: "redis://:RedisSecret123!@redis:6379/0"
       DOCUMENT_SERVICE_URL: "http://document-ingestion:8001"
       OCR_SERVICE_URL: "http://ocr-parsing:8002"
+      METROLOGY_SERVICE_URL: "http://metrology-engine:8003"
+      AI_SERVICE_URL: "http://ai-anomaly:8004"
+      MINIO_PUBLIC_BASE_URL: "http://minio:9000"
       DEFAULT_ADMIN_USERNAME: "fati_sadiki"
       DEFAULT_ADMIN_PASSWORD: "fati2004@"
     ports:
@@ -140,6 +143,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      ocr-parsing:
+        condition: service_healthy
     networks:
       - metrology-net
 
@@ -152,10 +157,31 @@ services:
     environment:
       PORT_OCR: 8002
       MINIO_PUBLIC_BASE_URL: "http://minio:9000"
+      MINIO_BUCKET: "metrology-certificates"
+      # Real extraction. Set to "true" only to serve fixture data while working
+      # on the UI without a running OCR stack.
+      MOCK_OCR: "false"
+      # Optional vision refinement. Without a key the service still extracts
+      # locally with RapidOCR; with one, measurement tables and header fields
+      # are read far more reliably. Supplied from app/.env or the shell.
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OCR_VISION_MODEL: "${OCR_VISION_MODEL:-gpt-4o}"
+      # Pages are rasterised to this longest side before OCR. 2000px keeps a
+      # scanned A4 legible at ~250KB/page instead of ~13MB.
+      OCR_RENDER_MAX_SIDE: "2000"
+      OCR_PAGE_WORKERS: "4"
+      LOG_LEVEL: "INFO"
     ports:
       - "8002:8002"
     networks:
       - metrology-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Model warm-up runs at startup; allow for it before probing.
+      start_period: 90s
 
   metrology-engine:
     build:
@@ -212,18 +238,18 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Next.js inlines NEXT_PUBLIC_* at build time, so this must be a build
+        # arg rather than only a runtime variable.
+        NEXT_PUBLIC_API_BASE_URL: "${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}"
     container_name: service_web_frontend
     restart: always
     environment:
       PORT: 3000
+      NEXT_PUBLIC_API_BASE_URL: "${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}"
     ports:
       - "3000:3000"
     depends_on:
       - auth-gateway
     networks:
       - metrology-net
-
-
-
-
-
