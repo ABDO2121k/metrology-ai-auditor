@@ -571,14 +571,20 @@ func GetCertificateDocument(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Certificate not found"})
 	}
 
-	obj, info, err := services.OpenFromMinIO(c.Context(), cert.FilePathS3)
+	// context.Background(), not c.Context(): fasthttp cancels and recycles the
+	// request context when the handler returns, which happens before the body
+	// is written.
+	obj, info, err := services.OpenFromMinIO(context.Background(), cert.FilePathS3)
 	if err != nil {
 		log.Printf("Could not open %s for certificate %s: %v", cert.FilePathS3, id, err)
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Stored document is no longer available in object storage",
 		})
 	}
-	defer obj.Close()
+	// Deliberately NOT deferred. SendStream only registers the reader; fasthttp
+	// writes it after this handler returns and closes it then. Closing here
+	// produced a 200 with a zero-byte body, which nginx reported downstream as
+	// "upstream prematurely closed connection".
 
 	filename := cert.OriginalFilename
 	if filename == "" {
@@ -587,7 +593,6 @@ func GetCertificateDocument(c *fiber.Ctx) error {
 
 	c.Set("Content-Type", "application/pdf")
 	c.Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", filename))
-	c.Set("Content-Length", fmt.Sprintf("%d", info.Size))
 	// The bytes never change once uploaded, so let the browser keep them.
 	c.Set("Cache-Control", "private, max-age=3600")
 
