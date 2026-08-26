@@ -93,7 +93,10 @@ func main() {
 			docSvcURL = "http://localhost:8001"
 		}
 
-		req, err := http.NewRequestWithContext(c.Context(), http.MethodGet, docSvcURL+c.Path(), nil)
+		// NOT c.Context(): fasthttp cancels and recycles the request context as
+		// soon as the handler returns, which is *before* the body is written.
+		// The client timeout below is what bounds this request instead.
+		req, err := http.NewRequest(http.MethodGet, docSvcURL+c.Path(), nil)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -108,10 +111,10 @@ func main() {
 		if err != nil {
 			return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": err.Error()})
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode >= 400 {
 			body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+			resp.Body.Close()
 			return c.Status(resp.StatusCode).Send(body)
 		}
 
@@ -122,6 +125,9 @@ func main() {
 		}
 		c.Set("Access-Control-Allow-Origin", "*")
 
+		// Deliberately not closed here. SendStream hands the reader to
+		// fasthttp, which writes it after this handler returns and closes it
+		// then — a defer here would shut the body before anything was sent.
 		if resp.ContentLength > 0 {
 			return c.Status(resp.StatusCode).SendStream(resp.Body, int(resp.ContentLength))
 		}
