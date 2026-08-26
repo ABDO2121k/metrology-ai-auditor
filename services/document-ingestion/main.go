@@ -40,6 +40,8 @@ func main() {
 	api.Get("/:id", handlers.GetCertificateByID)
 	// Stored extraction. Reading a certificate must never trigger a new OCR run.
 	api.Get("/:id/ocr", handlers.GetCertificateOCR)
+	// The original PDF, streamed from MinIO for the in-app viewer.
+	api.Get("/:id/document", handlers.GetCertificateDocument)
 	api.Post("/:id/reprocess", handlers.ReprocessCertificate)
 	api.Delete("/:id", handlers.DeleteCertificate)
 

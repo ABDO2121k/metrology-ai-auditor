@@ -44,6 +44,7 @@ type ocrMeasurement struct {
 	GuardBandSum         float64  `json:"guard_band_sum"`
 	IsReturnPoint        bool     `json:"is_return_point"`
 	IsHysteresisValid    bool     `json:"is_hysteresis_valid"`
+	ConformityDecided    bool     `json:"conformity_decided"`
 	IsConforme           bool     `json:"is_conforme"`
 	RecordedError        *float64 `json:"recorded_error"`
 }
@@ -333,6 +334,7 @@ func persistExtraction(certificateID string, data *ocrExtractedData, raw []byte)
 					ExpandedUncertaintyU: m.UncertaintyU,
 					EMTLimit:             m.EMTLimit,
 					GuardBandSum:         m.GuardBandSum,
+					ConformityDecided:    m.ConformityDecided,
 					IsConforme:           m.IsConforme,
 					IsReturnPoint:        m.IsReturnPoint,
 					IsHysteresisValid:    m.IsHysteresisValid,
@@ -552,6 +554,44 @@ func GetCertificateOCR(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
+}
+
+
+// GetCertificateDocument streams the original PDF.
+//
+// MinIO is not published in production, so this is the only way the browser
+// can reach the file. It is served inline rather than as an attachment so the
+// viewer can embed it: several audit findings end in "confirm it visually",
+// which needs the document on screen next to them.
+func GetCertificateDocument(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	var cert models.Certificate
+	if err := services.DB.Omit("ocr_payload").First(&cert, "id = ?", id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Certificate not found"})
+	}
+
+	obj, info, err := services.OpenFromMinIO(c.Context(), cert.FilePathS3)
+	if err != nil {
+		log.Printf("Could not open %s for certificate %s: %v", cert.FilePathS3, id, err)
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Stored document is no longer available in object storage",
+		})
+	}
+	defer obj.Close()
+
+	filename := cert.OriginalFilename
+	if filename == "" {
+		filename = cert.CertificateNumber + ".pdf"
+	}
+
+	c.Set("Content-Type", "application/pdf")
+	c.Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", filename))
+	c.Set("Content-Length", fmt.Sprintf("%d", info.Size))
+	// The bytes never change once uploaded, so let the browser keep them.
+	c.Set("Cache-Control", "private, max-age=3600")
+
+	return c.SendStream(obj, int(info.Size))
 }
 
 // ReprocessCertificate re-runs extraction for a certificate whose OCR failed or

@@ -125,6 +125,37 @@ func DeleteFromMinIO(ctx context.Context, s3Path string) error {
 	return err
 }
 
+
+// ObjectKeyFromS3Path strips the bucket prefix that UploadToMinIO adds, so the
+// stored path round-trips back to a key the SDK accepts.
+func ObjectKeyFromS3Path(s3Path string) string {
+	key := strings.TrimPrefix(s3Path, BucketName+"/")
+	return strings.TrimPrefix(key, "/")
+}
+
+// OpenFromMinIO streams an object back. The caller closes the reader.
+func OpenFromMinIO(ctx context.Context, s3Path string) (*minio.Object, minio.ObjectInfo, error) {
+	key := ObjectKeyFromS3Path(s3Path)
+	if key == "" {
+		return nil, minio.ObjectInfo{}, fmt.Errorf("empty object key")
+	}
+
+	obj, err := MinIOClient.GetObject(ctx, BucketName, key, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, minio.ObjectInfo{}, err
+	}
+
+	// GetObject is lazy: it does not contact the server until the object is
+	// read or stat'd, so a missing key would otherwise surface as a truncated
+	// 200 rather than a 404.
+	info, err := obj.Stat()
+	if err != nil {
+		obj.Close()
+		return nil, minio.ObjectInfo{}, err
+	}
+	return obj, info, nil
+}
+
 func PublishEvent(channel string, payload map[string]interface{}) {
 	ctx := context.Background()
 	jsonBytes, err := json.Marshal(payload)

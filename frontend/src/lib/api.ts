@@ -173,6 +173,8 @@ export interface MeasurementPoint {
   expanded_uncertainty_u: number;
   emt_limit: number;
   guard_band_sum: number;
+  /** False when no EMT was printed; is_conforme then carries no verdict. */
+  conformity_decided: boolean;
   is_conforme: boolean;
   is_return_point: boolean;
   is_hysteresis_valid: boolean;
@@ -270,6 +272,33 @@ export const api = {
 
   reprocessCertificate: (id: string) =>
     apiFetch(`/api/v1/certificates/${id}/reprocess`, { method: 'POST' }),
+
+  /**
+   * The stored PDF, as a blob URL for the in-app viewer.
+   *
+   * It cannot be linked to directly: MinIO is not published in production and
+   * the route needs an Authorization header, which a plain <iframe src> cannot
+   * send. Fetching it here and handing the viewer an object URL keeps the
+   * document behind authentication.
+   *
+   * The caller must URL.revokeObjectURL() the result when done.
+   */
+  getCertificateDocumentURL: async (id: string): Promise<string> => {
+    const res = await fetch(`${API_BASE}/api/v1/certificates/${id}/document`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) {
+      let message = `Document unavailable (HTTP ${res.status})`;
+      try {
+        const body = await res.json();
+        if (body?.error) message = body.error;
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new ApiError(message, res.status);
+    }
+    return URL.createObjectURL(await res.blob());
+  },
 
   deleteCertificate: (id: string) =>
     apiFetch(`/api/v1/certificates/${id}`, { method: 'DELETE' }),

@@ -650,6 +650,33 @@ def extract_humidity(text: str) -> Tuple[Optional[str], Optional[float]]:
     return raw, parse_number(raw) if raw else None
 
 
+
+# Wording used on these templates when the document runs onto another sheet.
+CONTINUATION_MARKERS = (
+    "SUITE DU CERTIFICAT",
+    "SUITE SUR LA PAGE SUIVANTE",
+    "PAGE SUIVANTE",
+    "VOIR PAGE SUIVANTE",
+    "CONTINUED ON",
+    "SUITE DU RAPPORT",
+    "A SUIVRE",
+)
+
+
+def ends_with_continuation(last_page_text: str) -> Optional[str]:
+    """Return the marker found if the final page announces a continuation.
+
+    Only the last page is inspected: every intermediate page of a multi-sheet
+    certificate legitimately says the document continues, so the phrase is
+    only evidence of a missing sheet when it appears on the final one.
+    """
+    haystack = normalize(last_page_text)
+    for marker in CONTINUATION_MARKERS:
+        if marker in haystack:
+            return marker
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Measurement table recovery
 # ---------------------------------------------------------------------------

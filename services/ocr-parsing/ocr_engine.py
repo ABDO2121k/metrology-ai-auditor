@@ -630,16 +630,39 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
     for message in missing_critical:
         outcome.block(message)
 
-    if not measurements:
-        detail = f" ({table_decline_reason})" if table_decline_reason else ""
+    # A certificate whose final page announces a continuation is missing a
+    # sheet. That has to be reported as a document problem, not as a failure to
+    # read one: the reader found nothing because there is nothing to find.
+    last_page_text = pages[-1].text if pages else ""
+    continuation_marker = parsing.ends_with_continuation(last_page_text)
+    document_is_truncated = bool(continuation_marker)
+
+    if document_is_truncated:
         outcome.block(
-            f"No measurement points could be extracted from the certificate{detail}"
+            f"Document is incomplete: the last page ({actual_pages}) announces "
+            f"a continuation ({continuation_marker.title()}), so the certificate "
+            "runs onto a sheet that is not part of this file"
         )
-        if table_decline_reason and not vision.is_configured():
-            outcome.suggest(
-                "Enable the vision layer (OPENAI_API_KEY) to read measurement "
-                "tables from scanned certificates, or capture the points manually"
+
+    if not measurements:
+        if document_is_truncated:
+            outcome.block(
+                "No measurement points could be extracted because the page "
+                "carrying the measurement table is missing from the document"
             )
+            outcome.suggest(
+                "Re-scan the certificate including every page, then re-upload it"
+            )
+        else:
+            detail = f" ({table_decline_reason})" if table_decline_reason else ""
+            outcome.block(
+                f"No measurement points could be extracted from the certificate{detail}"
+            )
+            if table_decline_reason and not vision.is_configured():
+                outcome.suggest(
+                    "Enable the vision layer (OPENAI_API_KEY) to read measurement "
+                    "tables from scanned certificates, or capture the points manually"
+                )
     elif table_decline_reason:
         # Some sections read cleanly and others did not. The certificate is
         # therefore only partially audited, which the reviewer must be told.
@@ -699,10 +722,12 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
     else:
         recommendation = "VALIDATED"
 
-    measurement_validity = 1.0
-    if measurements:
-        conforming = sum(1 for row in measurements if row.is_conforme)
-        measurement_validity = round(conforming / len(measurements), 4)
+    # Scored over points that were actually judged. Counting undecided points
+    # as valid would inflate the figure exactly where evidence is missing.
+    decided_rows = [row for row in measurements if row.conformity_decided]
+    if decided_rows:
+        conforming = sum(1 for row in decided_rows if row.is_conforme)
+        measurement_validity = round(conforming / len(decided_rows), 4)
     else:
         measurement_validity = 0.0
 

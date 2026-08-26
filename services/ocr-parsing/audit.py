@@ -33,6 +33,7 @@ class AuditOutcome:
 
     math_errors_detected: int = 0
     non_conforme_points: int = 0
+    undecided_points: int = 0
     hysteresis_failures: int = 0
 
     page_integrity_pass: bool = True
@@ -88,15 +89,20 @@ def audit_measurements(rows: Sequence[MeasurementRow]) -> Tuple[List[Measurement
         row.guard_band_sum = guard_band
 
         if row.emt_limit > 0:
+            row.conformity_decided = True
             row.is_conforme = guard_band <= row.emt_limit
         else:
-            # Without an EMT we cannot rule on conformity; do not claim CONFORME.
-            row.is_conforme = True
+            # The guard-band rule needs an EMT to compare against. Marking the
+            # point conforming here would be asserting a pass nobody tested.
+            row.conformity_decided = False
+            row.is_conforme = False
+            outcome.undecided_points += 1
             outcome.warn(
-                f"Point {row.point_index}: no EMT printed, conformity could not be decided"
+                f"Point {row.point_index}: no EMT printed on the certificate, "
+                "so conformity could not be decided for this point"
             )
 
-        if not row.is_conforme:
+        if row.conformity_decided and not row.is_conforme:
             outcome.non_conforme_points += 1
             outcome.block(
                 f"Point {row.point_index} ({row.nominal_value} {row.unit}): "
@@ -131,12 +137,27 @@ def audit_measurements(rows: Sequence[MeasurementRow]) -> Tuple[List[Measurement
 
         audited.append(row)
 
+    decided = [row for row in audited if row.conformity_decided]
+
     if outcome.non_conforme_points or outcome.hysteresis_failures:
         outcome.conformity_status = "NON_CONFORME"
-    elif not audited:
+    elif not audited or not decided:
+        # Either nothing was extracted, or nothing carried a tolerance. Both
+        # mean the verdict is unknown, never that the instrument passed.
         outcome.conformity_status = "INDETERMINE"
+        if audited:
+            outcome.warn(
+                f"No EMT was printed for any of the {len(audited)} measurement "
+                "point(s), so no conformity verdict could be reached"
+            )
     else:
         outcome.conformity_status = "CONFORME"
+        if len(decided) < len(audited):
+            # A partial verdict must say what it covers.
+            outcome.warn(
+                f"Conformity was decided on {len(decided)} of {len(audited)} "
+                "point(s); the rest carried no EMT"
+            )
 
     return audited, outcome
 

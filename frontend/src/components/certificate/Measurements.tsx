@@ -24,10 +24,15 @@ function formatNumber(value: number | null | undefined): string {
   return String(Number(value.toFixed(6)));
 }
 
-function VerdictCell({ point, decided }: { point: MeasurementPoint; decided: boolean }) {
-  if (!decided) {
+function VerdictCell({ point }: { point: MeasurementPoint }) {
+  // A point with no printed EMT has nothing to test against. Showing a green
+  // tick there would claim a pass that was never assessed.
+  if (point.conformity_decided === false) {
     return (
-      <span className="text-amber-400 font-bold flex items-center gap-1 whitespace-nowrap">
+      <span
+        className="text-amber-400 font-bold flex items-center gap-1 whitespace-nowrap"
+        title="Aucun EMT imprimé sur le certificat pour ce point"
+      >
         <HelpCircle className="w-3 h-3" /> Indéterminé
       </span>
     );
@@ -74,7 +79,9 @@ export default function Measurements({ ocr }: { ocr: CertificateOCR | null }) {
     );
   }
 
-  const nonConforme = points.filter((p) => !p.is_conforme).length;
+  const decidedPoints = points.filter((p) => p.conformity_decided !== false);
+  const nonConforme = decidedPoints.filter((p) => !p.is_conforme).length;
+  const undecided = points.length - decidedPoints.length;
 
   return (
     <div className="space-y-6">
@@ -99,22 +106,28 @@ export default function Measurements({ ocr }: { ocr: CertificateOCR | null }) {
           <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
             <div className="text-[10px] text-slate-400 uppercase">Non conformes</div>
             <div className={`text-xl font-extrabold ${nonConforme ? 'text-rose-400' : 'text-emerald-400'}`}>
-              {conformityDecided ? nonConforme : '—'}
+              {decidedPoints.length ? nonConforme : '—'}
             </div>
           </div>
           <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-            <div className="text-[10px] text-slate-400 uppercase">Points retour</div>
-            <div className="text-xl font-extrabold text-slate-300">
-              {points.filter((p) => p.is_return_point).length}
+            <div className="text-[10px] text-slate-400 uppercase">Sans EMT</div>
+            <div className={`text-xl font-extrabold ${undecided ? 'text-amber-400' : 'text-slate-300'}`}>
+              {undecided}
             </div>
           </div>
         </div>
 
-        {!conformityDecided && (
+        {undecided > 0 && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-200">
+            {undecided} point(s) ne portent pas d'EMT sur le certificat : la règle
+            |Correction| + U ≤ EMT n'a rien à quoi se comparer, donc aucun verdict
+            de conformité n'est prononcé pour ceux-là.
+          </div>
+        )}
+        {!conformityDecided && decidedPoints.length === 0 && (
           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-200">
             Les colonnes ont été déduites sans en-têtes de tableau : les valeurs sont
-            affichées telles qu'extraites, mais aucun verdict de conformité n'est
-            prononcé point par point.
+            affichées telles qu'extraites.
           </div>
         )}
 
@@ -176,7 +189,7 @@ export default function Measurements({ ocr }: { ocr: CertificateOCR | null }) {
                   <tr
                     key={`${unit}-${m.point_index}`}
                     className={`border-t border-slate-800 text-slate-200 ${
-                      conformityDecided && !m.is_conforme ? 'bg-rose-500/5' : ''
+                      m.conformity_decided !== false && !m.is_conforme ? 'bg-rose-500/5' : ''
                     }`}
                   >
                     <td className="p-3">{m.point_index}</td>
@@ -189,7 +202,7 @@ export default function Measurements({ ocr }: { ocr: CertificateOCR | null }) {
                     <td className="p-3">{formatNumber(m.emt_limit)}</td>
                     <td className="p-3 font-semibold">{formatNumber(m.guard_band_sum)}</td>
                     <td className="p-3">
-                      <VerdictCell point={m} decided={conformityDecided} />
+                      <VerdictCell point={m} />
                     </td>
                   </tr>
                 ))}

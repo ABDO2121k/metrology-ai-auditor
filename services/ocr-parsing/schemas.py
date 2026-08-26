@@ -28,6 +28,10 @@ class MeasurementRow(BaseModel):
     hysteresis_delta: Optional[float] = None
     is_hysteresis_valid: bool = True
     math_check_pass: bool = True
+    # False when the certificate printed no EMT for this point, so the
+    # guard-band rule has nothing to test against. is_conforme is then
+    # meaningless and must not be shown as a pass.
+    conformity_decided: bool = True
     is_conforme: bool = True
 
 
@@ -123,6 +127,7 @@ class MetrologicalAuditSummary(BaseModel):
     total_points_tested: int = 0
     math_errors_detected: int = 0
     non_conforme_points: int = 0
+    undecided_points: int = 0
     hysteresis_failures: int = 0
     conformity_status: str = "CONFORME"
     parameters_audited: List[str] = []

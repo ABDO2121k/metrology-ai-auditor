@@ -119,6 +119,9 @@ type MeasurementPoint struct {
 	ExpandedUncertaintyU float64   `gorm:"column:expanded_uncertainty_u" json:"expanded_uncertainty_u"`
 	EMTLimit             float64   `gorm:"column:emt_limit" json:"emt_limit"`
 	GuardBandSum         float64   `gorm:"column:guard_band_sum" json:"guard_band_sum"`
+	// False when the certificate printed no EMT for the point, so IsConforme
+	// carries no verdict and must not be rendered as a pass.
+	ConformityDecided    bool      `gorm:"column:conformity_decided;default:true" json:"conformity_decided"`
 	IsConforme           bool      `gorm:"column:is_conforme" json:"is_conforme"`
 	IsReturnPoint        bool      `gorm:"column:is_return_point" json:"is_return_point"`
 	IsHysteresisValid    bool      `gorm:"column:is_hysteresis_valid" json:"is_hysteresis_valid"`

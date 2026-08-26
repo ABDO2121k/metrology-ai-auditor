@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS measurement_points (
     expanded_uncertainty_u NUMERIC(12, 4) NOT NULL,
     emt_limit NUMERIC(12, 4) NOT NULL,
     guard_band_sum NUMERIC(12, 4) NOT NULL,
+    -- FALSE when no EMT was printed: is_conforme then carries no verdict.
+    conformity_decided BOOLEAN NOT NULL DEFAULT TRUE,
     is_conforme BOOLEAN NOT NULL,
     is_return_point BOOLEAN DEFAULT FALSE,
     is_hysteresis_valid BOOLEAN DEFAULT TRUE,
