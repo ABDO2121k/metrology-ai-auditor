@@ -11,3 +11,10 @@ onnxruntime==1.17.3
 # Optional vision refinement layer. 1.3.0 predates the current client surface
 # (timeouts, retries, structured errors) that vision.py relies on.
 openai==1.30.5
+# httpx MUST stay below 0.28. This openai release passes proxies= to
+# httpx.Client, which 0.28 removed, so an unpinned install resolves to a
+# combination that raises
+#   TypeError: Client.__init__() got an unexpected keyword argument 'proxies'
+# on the first vision call - after the image builds and the service reports
+# healthy, so it only surfaces when a certificate is uploaded.
+httpx==0.27.2

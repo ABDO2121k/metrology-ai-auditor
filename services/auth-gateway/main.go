@@ -3,11 +3,13 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/proxy"
+	"github.com/valyala/fasthttp"
 
 	"auth-gateway/config"
 	"auth-gateway/controllers"
@@ -21,6 +23,16 @@ func main() {
 		AppName:      "Process Instruments Auth Gateway v1.0",
 		ServerHeader: "Fiber-Gateway",
 		BodyLimit:    50 * 1024 * 1024, // 50MB limit for PDF uploads
+	})
+
+	// fasthttp buffers a proxied response entirely in memory and caps it at
+	// 4 MB by default. Certificate scans are routinely larger — a 4.4 MB PDF
+	// came back to the browser as "unexpected EOF" — so the proxy client needs
+	// a ceiling that matches what the platform accepts on upload.
+	proxy.WithClient(&fasthttp.Client{
+		MaxResponseBodySize: 64 * 1024 * 1024,
+		ReadTimeout:         2 * time.Minute,
+		WriteTimeout:        2 * time.Minute,
 	})
 
 	// Global Middlewares
