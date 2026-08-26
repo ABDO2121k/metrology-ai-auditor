@@ -464,20 +464,86 @@ python scripts/test_all_pdfs.py
 6. **Vision cost**, when enabled, is roughly $0.01–0.03 per certificate.
    Extraction runs once and is stored, so viewing a certificate is free.
 
+## 9b. Fixes found by running the deployed app
+
+### Every upload returned 500
+
+```
+Failed to save database record:
+ERROR: invalid input syntax for type json (SQLSTATE 22P02)
+```
+
+`ocr_payload` was mapped to a plain Go `string`. The certificate row is created
+*before* extraction runs, so the field is empty at INSERT time and GORM sent
+`''`, which Postgres rejects as invalid JSON — failing the entire statement.
+Nothing could be uploaded at all.
+
+`JSONDocument` implements `driver.Valuer` / `sql.Scanner` and writes `NULL`
+for an empty value, which is also the honest representation of "not extracted
+yet".
+
+### Demo data that was never real
+
+`init-db.sql` seeded five certificates, three reference standards and three
+anomaly rows. They were not usable:
+
+- `file_hash_sha256` held placeholders such as `hash_sha256_cert1_arrm13388`
+  rather than a digest, so the duplicate check could never match them;
+- `file_path_s3` pointed at objects that had never been uploaded to MinIO, so
+  the rows could not be opened, downloaded or re-processed;
+- they carried no `ocr_payload` and no `measurement_points`, so the detail
+  view had nothing to render;
+- they still counted towards every KPI — the dashboard reported five
+  certificates and four validated on a platform that had processed nothing.
+
+The database now starts empty and fills from real uploads. The
+`reference_standards` table is kept (the schema documents it) but not
+populated: nothing reads it, and traceability is taken from each certificate's
+own printed block during extraction.
+
+### Favicon
+
+The browser requested `/favicon.ico` on every page load and got a 404. Added.
+
+*(`/.well-known/appspecific/com.chrome.devtools.json` also 404s — that is
+Chrome DevTools probing for a workspace file. Every site returns 404 for it.)*
+
+---
+
 ## 10. Verification performed
+
+Static, on the development machine:
 
 | Check | Result |
 |---|---|
 | `npx tsc --noEmit` | passes |
 | 9 OCR modules parse, import, no control chars | passes |
-| Go sources structurally balanced | passes |
 | `docker compose config` | valid |
-| `python scripts/test_all_pdfs.py` over all 5 real certificates | completes; results in §3 and §3b |
-| Cachet tri-state (`PRESENT` / `ABSENT` / `NOT_VERIFIABLE`) drives block / pass / warn | verified per state |
-| Measurement grouping across 7 units on Certif 5 | verified |
+| `python scripts/test_all_pdfs.py` over all 5 certificates | completes; §3 and §3b |
 
-**Not verified:** the Go services were not compiled — no Go toolchain on this
-machine and the Docker daemon was not running. `npx next build` was also not
-run this round (verification only, by request); the last full build passed with
-all 9 routes. `docker compose up --build` remains the first real compile of
-`auth-gateway` and `document-ingestion`.
+Functional, against the deployed stack:
+
+| Area | Case | Result |
+|---|---|---|
+| Build | all 7 images on aarch64 — **first real compile of both Go services** | pass |
+| Auth | wrong password / no token / garbage token | 401 |
+| Auth | valid login | 200 + JWT |
+| Upload | valid PDF | 202, extraction starts |
+| Upload | non-PDF | 415 |
+| Upload | missing file field | 400 |
+| Upload | identical SHA-256 | 409 |
+| OCR | end-to-end on a real certificate | `OCR_COMPLETED` in ~20 s |
+| OCR | extracted `ARTL05391-26/A` · TTECLAB · TACHYMETRE · 3 points | correct |
+| OCR | cachet on a greyscale scan | `NOT_VERIFIABLE` |
+| Persistence | payload, measurements and anomalies stored | pass |
+| Reprocess | `POST /:id/reprocess` | 202, re-extracts |
+| Delete | `DELETE /:id` | 200 |
+| Reads | unknown certificate id | 404 |
+| Admin | create user / reset password / new user logs in | 201 / 200 / 200 |
+| Admin | role coerced server-side | `TECHNICIAN` |
+| Frontend | all 7 pages | 200 |
+| Static | `/favicon.ico` | 200 |
+
+**Not verified:** `npx next build` was not re-run locally this round, though the
+image builds on the server. HTTPS is not configured — see
+`deploy/ORACLE_CLOUD.md`.
