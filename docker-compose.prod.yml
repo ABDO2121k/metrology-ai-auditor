@@ -1,0 +1,276 @@
+# =============================================================================
+# Production deployment — single public entrypoint
+# =============================================================================
+# This is a COMPLETE compose file, not an override of docker-compose.yml.
+# Compose concatenates `ports` when you layer files with -f, which would have
+# left the development 0.0.0.0 bindings in place alongside the hardened ones —
+# exactly the mistake this file exists to prevent. Read it as the whole truth
+# about what runs in production.
+#
+# The difference from the development file is the network boundary:
+#
+#   development            production
+#   ------------           ----------
+#   postgres  0.0.0.0:5432  no published port  (reachable only on the bridge)
+#   redis     0.0.0.0:6379  no published port
+#   minio     0.0.0.0:9000  no published port
+#   services  0.0.0.0:800x  no published port
+#   frontend  0.0.0.0:3000  no published port
+#                           nginx 0.0.0.0:80 -> frontend + gateway
+#
+# Publishing a datastore on a public IP with credentials that live in a public
+# git repository is directly exploitable, so nothing but nginx is reachable
+# from outside the host.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+# =============================================================================
+
+name: metrology
+
+networks:
+  metrology-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+services:
+  # ==========================================
+  # 1. INFRASTRUCTURE — no published ports
+  # ==========================================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: metrology_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - metrology-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  redis:
+    image: redis:7-alpine
+    container_name: metrology_redis
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - metrology-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  minio:
+    image: minio/minio:latest
+    container_name: metrology_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    networks:
+      - metrology-net
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  createbuckets:
+    image: minio/mc:latest
+    container_name: metrology_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
+      /usr/bin/mc mb myminio/metrology-certificates --ignore-existing;
+      /usr/bin/mc mb myminio/audit-reports --ignore-existing;
+      /usr/bin/mc anonymous set download myminio/metrology-certificates;
+      exit 0;
+      "
+    networks:
+      - metrology-net
+
+  # ==========================================
+  # 2. MICROSERVICES — internal only
+  # ==========================================
+
+  auth-gateway:
+    build:
+      context: ./services/auth-gateway
+    container_name: service_auth_gateway
+    restart: always
+    environment:
+      PORT_GATEWAY: 8000
+      JWT_SECRET: ${JWT_SECRET}
+      POSTGRES_DSN: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+      REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:6379/0"
+      DOCUMENT_SERVICE_URL: "http://document-ingestion:8001"
+      OCR_SERVICE_URL: "http://ocr-parsing:8002"
+      METROLOGY_SERVICE_URL: "http://metrology-engine:8003"
+      AI_SERVICE_URL: "http://ai-anomaly:8004"
+      MINIO_PUBLIC_BASE_URL: "http://minio:9000"
+      DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - metrology-net
+
+  document-ingestion:
+    build:
+      context: ./services/document-ingestion
+    container_name: service_document_ingestion
+    restart: always
+    environment:
+      PORT_DOCUMENT: 8001
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: "metrology-certificates"
+      POSTGRES_DSN: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+      REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:6379/0"
+      OCR_SERVICE_URL: "http://ocr-parsing:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      ocr-parsing:
+        condition: service_healthy
+    networks:
+      - metrology-net
+
+  ocr-parsing:
+    build:
+      context: ./services/ocr-parsing
+    container_name: service_ocr_parsing
+    restart: always
+    environment:
+      PORT_OCR: 8002
+      MINIO_PUBLIC_BASE_URL: "http://minio:9000"
+      MINIO_BUCKET: "metrology-certificates"
+      MOCK_OCR: "false"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OCR_VISION_MODEL: "${OCR_VISION_MODEL:-gpt-4o}"
+      OCR_RENDER_MAX_SIDE: "${OCR_RENDER_MAX_SIDE:-2000}"
+      # This host has 2 vCPUs; more workers than cores only adds memory
+      # pressure and risks "ONNXRuntime inference failed" on a page.
+      OCR_PAGE_WORKERS: "${OCR_PAGE_WORKERS:-2}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+    networks:
+      - metrology-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+  metrology-engine:
+    build:
+      context: ./services/metrology-engine
+    container_name: service_metrology_engine
+    restart: always
+    environment:
+      PORT_METROLOGY: 8003
+    networks:
+      - metrology-net
+
+  ai-anomaly:
+    build:
+      context: ./services/ai-anomaly
+    container_name: service_ai_anomaly
+    restart: always
+    environment:
+      PORT_ANOMALY: 8004
+    networks:
+      - metrology-net
+
+  reporting-notification:
+    build:
+      context: ./services/reporting-notification
+    container_name: service_reporting_notification
+    restart: always
+    environment:
+      PORT_REPORTING: 8005
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      MINIO_HOST: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - metrology-net
+
+  web-frontend:
+    build:
+      context: ./frontend
+      args:
+        # Same origin as the page itself: nginx serves the app and proxies
+        # /api to the gateway, so the browser never needs a second port and
+        # there is no cross-origin request to configure.
+        NEXT_PUBLIC_API_BASE_URL: "${PUBLIC_BASE_URL}"
+    container_name: service_web_frontend
+    restart: always
+    environment:
+      PORT: 3000
+      NEXT_PUBLIC_API_BASE_URL: "${PUBLIC_BASE_URL}"
+    depends_on:
+      - auth-gateway
+    networks:
+      - metrology-net
+
+  # ==========================================
+  # 3. THE ONLY PUBLIC SURFACE
+  # ==========================================
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: metrology_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web-frontend
+      - auth-gateway
+    networks:
+      - metrology-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
