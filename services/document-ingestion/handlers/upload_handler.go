@@ -259,7 +259,7 @@ func persistExtraction(certificateID string, data *ocrExtractedData, raw []byte)
 		cert.PageCount = data.ActualExtractedPages
 		cert.AmbientTemperature = data.AmbientTemperature
 		cert.AmbientHumidity = data.AmbientHumidity
-		cert.OCRPayload = string(raw)
+		cert.OCRPayload = models.JSONDocument(raw)
 		cert.OCRError = ""
 		now := time.Now()
 		cert.OCRCompletedAt = &now
@@ -544,7 +544,7 @@ func GetCertificateOCR(c *fiber.Ctx) error {
 		"anomalies":          anomalies,
 	}
 
-	if cert.OCRPayload != "" {
+	if !cert.OCRPayload.IsEmpty() {
 		var payload map[string]interface{}
 		if err := json.Unmarshal([]byte(cert.OCRPayload), &payload); err == nil {
 			response["extraction"] = payload

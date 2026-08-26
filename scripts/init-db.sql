@@ -126,28 +126,27 @@ INSERT INTO users (id, username, email, password_hash, full_name, role) VALUES
 ('ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'fati_sadiki', 'fati_sadiki@process-instruments.ma', 'seeded-at-startup', 'Fatima-Ezzahrae Sadiki', 'TECHNICIAN')
 ON CONFLICT (username) DO NOTHING;
 
--- Seed Sample Reference Standards
-INSERT INTO reference_standards (code_identifier, designation, validity_expiry_date) VALUES
-('REF-ELEC-01', 'Multi-Function Calibrator Fluke 5522A', '2028-12-31'),
-('REF-ELEC-02', 'High Precision Resistor Box AOIP', '2027-10-15'),
-('REF-ELEC-03', 'Pt100 Reference Temperature Probe', '2028-06-30')
-ON CONFLICT (code_identifier) DO NOTHING;
-
--- Seed Sample Certificates Across 5 Models
-INSERT INTO certificates (id, certificate_number, original_filename, file_path_s3, file_hash_sha256, status, page_count, announced_page_count, client_name, instrument_name, instrument_serial, issue_date, calibration_date, next_calibration_date, ambient_temperature, ambient_humidity, uploaded_by, validated_by) VALUES
-('e1000000-0000-0000-0000-000000000001', 'ARRM13388-26', 'ARRM13388-26.pdf', 'metrology-certificates/ARRM13388-26.pdf', 'hash_sha256_cert1_arrm13388', 'VALIDATED_CONFORME', 2, 2, 'OCP Group', 'Resistor Box AOIP', 'SN-99812', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67'),
-('e2000000-0000-0000-0000-000000000002', 'AETE04897-26', 'AETE04897-26.pdf', 'metrology-certificates/AETE04897-26.pdf', 'hash_sha256_cert2_aete04897', 'VALIDATED_CONFORME', 4, 4, 'ONEE Power', 'Pt100 Temperature Sensor', 'SN-44310', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67'),
-('e3000000-0000-0000-0000-000000000003', 'ARTL05391-26/A', 'ARTL05391-26_A.pdf', 'metrology-certificates/ARTL05391-26_A.pdf', 'hash_sha256_cert3_artl05391', 'FLAGGED_ANOMALY', 3, 3, 'LafargeHolcim', 'Digital Multimeter Keysight', 'SN-77821', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', NULL),
-('e4000000-0000-0000-0000-000000000004', 'ARBI13361-26', 'ARBI13361-26.pdf', 'metrology-certificates/ARBI13361-26.pdf', 'hash_sha256_cert4_arbi13361', 'VALIDATED_CONFORME', 2, 2, 'Renault Tangier', 'High Precision Electrical Shunt', 'SN-11204', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67'),
-('e5000000-0000-0000-0000-000000000005', 'AENS12791-26', 'AENS12791-26.pdf', 'metrology-certificates/AENS12791-26.pdf', 'hash_sha256_cert5_aens12791', 'VALIDATED_CONFORME', 6, 6, 'Cosumar SA', 'Multi-function Process Calibrator', 'SN-55619', '2026-07-29', '2026-07-29', '2027-07-29', '23.0 °C', '50.0 % HR', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67', 'ad9accdb-6890-41cd-8cb9-fe7bff7f4e67')
-ON CONFLICT (certificate_number) DO NOTHING;
-
--- Seed Anomaly Audit Logs for AI Detection
-INSERT INTO anomaly_audit_logs (certificate_id, anomaly_type, severity, description, ai_confidence_score) VALUES
-('e3000000-0000-0000-0000-000000000003', 'MISSING_SIGNATURE', 'CRITICAL_BLOCKING', 'Validation signature missing on page 3 of multimeter certificate', 98.50),
-('e3000000-0000-0000-0000-000000000003', 'MISSING_STAMP', 'CRITICAL_BLOCKING', 'Accreditation seal classification score below threshold', 96.20),
-('e3000000-0000-0000-0000-000000000003', 'EMT_LIMIT_EXCEEDED', 'WARNING', 'Guard-band sum |Corr| + U exceeds EMT on measurement point #4', 92.10)
-ON CONFLICT DO NOTHING;
+-- =========================================================
+-- NO DEMO DATA
+-- =========================================================
+-- Earlier revisions seeded five certificates, three reference standards and
+-- three anomaly rows. They were removed because they were not real:
+--
+--   * file_hash_sha256 held placeholders like 'hash_sha256_cert1_arrm13388'
+--     rather than an actual digest, so the duplicate check could never match
+--     them;
+--   * file_path_s3 pointed at objects that were never uploaded to MinIO, so
+--     the rows could not be opened, downloaded or re-processed;
+--   * they carried no ocr_payload and no measurement_points, so the detail
+--     view had nothing to show;
+--   * they still counted towards every dashboard KPI, reporting five
+--     certificates and four validated ones on a platform that had never
+--     processed a single document.
+--
+-- The platform now starts empty and fills from real uploads. The
+-- reference_standards table is kept because the schema documents it, but it
+-- is not populated: nothing reads it, and traceability is taken from each
+-- certificate's own printed block during extraction.
 
 -- INDEXES
 CREATE INDEX IF NOT EXISTS idx_certs_status ON certificates(status);

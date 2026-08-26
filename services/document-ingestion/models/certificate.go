@@ -1,6 +1,9 @@
 package models
 
 import (
+	"database/sql/driver"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -21,6 +24,47 @@ const (
 	StatusRejected       = "REJECTED_NON_CONFORME"
 )
 
+// JSONDocument is a JSON value held in a jsonb column.
+//
+// Postgres rejects the empty string as invalid JSON, so a Go string cannot be
+// mapped straight onto jsonb: inserting a record before its payload exists
+// sends '' and fails the whole INSERT with
+//
+//	invalid input syntax for type json (SQLSTATE 22P02)
+//
+// which is exactly what happened to every upload, because the certificate row
+// is deliberately created before extraction runs. Writing NULL for an empty
+// value is the correct representation of "no payload yet".
+type JSONDocument string
+
+// Value implements driver.Valuer.
+func (j JSONDocument) Value() (driver.Value, error) {
+	if strings.TrimSpace(string(j)) == "" {
+		return nil, nil
+	}
+	return string(j), nil
+}
+
+// Scan implements sql.Scanner.
+func (j *JSONDocument) Scan(src interface{}) error {
+	switch v := src.(type) {
+	case nil:
+		*j = ""
+	case []byte:
+		*j = JSONDocument(v)
+	case string:
+		*j = JSONDocument(v)
+	default:
+		return fmt.Errorf("cannot scan %T into JSONDocument", src)
+	}
+	return nil
+}
+
+// IsEmpty reports whether there is any payload to decode.
+func (j JSONDocument) IsEmpty() bool {
+	return strings.TrimSpace(string(j)) == ""
+}
+
 type Certificate struct {
 	ID                  string     `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"id"`
 	CertificateNumber   string     `gorm:"column:certificate_number;uniqueIndex" json:"certificate_number"`
@@ -40,10 +84,10 @@ type Certificate struct {
 	AmbientHumidity     string     `gorm:"column:ambient_humidity" json:"ambient_humidity"`
 
 	// The complete extraction, stored so the detail view can render results
-	// without re-running a multi-second OCR pass on every page load.
-	// Stored as text and cast to jsonb by Postgres on write. Excluded from
-	// JSON responses: callers read it through GET /:id/ocr, which decodes it.
-	OCRPayload        string         `gorm:"column:ocr_payload;type:jsonb" json:"-"`
+	// without re-running a multi-second OCR pass on every page load. Excluded
+	// from JSON responses: callers read it through GET /:id/ocr, which decodes
+	// it. Empty is written as NULL - see JSONDocument.
+	OCRPayload        JSONDocument   `gorm:"column:ocr_payload;type:jsonb" json:"-"`
 	OCRConfidence     *float64       `gorm:"column:ocr_confidence" json:"ocr_confidence"`
 	ExtractionQuality string         `gorm:"column:extraction_quality" json:"extraction_quality"`
 	ConformityStatus  string         `gorm:"column:conformity_status" json:"conformity_status"`
