@@ -121,7 +121,10 @@ type MeasurementPoint struct {
 	GuardBandSum         float64   `gorm:"column:guard_band_sum" json:"guard_band_sum"`
 	// False when the certificate printed no EMT for the point, so IsConforme
 	// carries no verdict and must not be rendered as a pass.
-	ConformityDecided    bool      `gorm:"column:conformity_decided;default:true" json:"conformity_decided"`
+	// No `default:` tag here on purpose. GORM treats a zero value as "use
+	// the column default", so `default:true` silently rewrote every false
+	// into true - which is precisely the unearned pass this flag prevents.
+	ConformityDecided    bool      `gorm:"column:conformity_decided" json:"conformity_decided"`
 	IsConforme           bool      `gorm:"column:is_conforme" json:"is_conforme"`
 	IsReturnPoint        bool      `gorm:"column:is_return_point" json:"is_return_point"`
 	IsHysteresisValid    bool      `gorm:"column:is_hysteresis_valid" json:"is_hysteresis_valid"`

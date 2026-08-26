@@ -1,7 +1,9 @@
 package main
 
 import (
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -9,7 +11,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/proxy"
-	"github.com/valyala/fasthttp"
 
 	"auth-gateway/config"
 	"auth-gateway/controllers"
@@ -23,16 +24,6 @@ func main() {
 		AppName:      "Process Instruments Auth Gateway v1.0",
 		ServerHeader: "Fiber-Gateway",
 		BodyLimit:    50 * 1024 * 1024, // 50MB limit for PDF uploads
-	})
-
-	// fasthttp buffers a proxied response entirely in memory and caps it at
-	// 4 MB by default. Certificate scans are routinely larger — a 4.4 MB PDF
-	// came back to the browser as "unexpected EOF" — so the proxy client needs
-	// a ceiling that matches what the platform accepts on upload.
-	proxy.WithClient(&fasthttp.Client{
-		MaxResponseBodySize: 64 * 1024 * 1024,
-		ReadTimeout:         2 * time.Minute,
-		WriteTimeout:        2 * time.Minute,
 	})
 
 	// Global Middlewares
@@ -87,6 +78,54 @@ func main() {
 		c.Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
 		c.Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
 		return c.SendStatus(fiber.StatusNoContent)
+	})
+
+	// The stored PDF is streamed rather than proxied.
+	//
+	// fasthttp — which backs proxy.Forward — reads a proxied response fully
+	// into memory and caps it at 4 MB, so a 4.4 MB certificate scan reached
+	// the browser as "unexpected EOF". Copying the body through keeps memory
+	// flat regardless of file size, which matters on a 2 vCPU host accepting
+	// uploads up to 50 MB.
+	protected.Get("/certificates/:id/document", middleware.RequireAuthenticated(), func(c *fiber.Ctx) error {
+		docSvcURL := os.Getenv("DOCUMENT_SERVICE_URL")
+		if docSvcURL == "" {
+			docSvcURL = "http://localhost:8001"
+		}
+
+		req, err := http.NewRequestWithContext(c.Context(), http.MethodGet, docSvcURL+c.Path(), nil)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		// Carry the caller's identity to the downstream service.
+		for _, h := range []string{"X-User-ID", "X-User-Name", "X-User-Role"} {
+			if v := c.Get(h); v != "" {
+				req.Header.Set(h, v)
+			}
+		}
+
+		resp, err := (&http.Client{Timeout: 5 * time.Minute}).Do(req)
+		if err != nil {
+			return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": err.Error()})
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode >= 400 {
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+			return c.Status(resp.StatusCode).Send(body)
+		}
+
+		for _, h := range []string{"Content-Type", "Content-Disposition", "Cache-Control"} {
+			if v := resp.Header.Get(h); v != "" {
+				c.Set(h, v)
+			}
+		}
+		c.Set("Access-Control-Allow-Origin", "*")
+
+		if resp.ContentLength > 0 {
+			return c.Status(resp.StatusCode).SendStream(resp.Body, int(resp.ContentLength))
+		}
+		return c.Status(resp.StatusCode).SendStream(resp.Body)
 	})
 
 	protected.All("/certificates*", middleware.RequireAuthenticated(), func(c *fiber.Ctx) error {
