@@ -202,7 +202,7 @@ export default function UploadPage() {
           <button
             onClick={uploadAll}
             disabled={queuedCount === 0 || uploadingCount > 0}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 transition"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-on-accent font-bold text-xs shadow-lg shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 transition"
           >
             {uploadingCount > 0
               ? <><Loader2 className="w-4 h-4 animate-spin" /> {t('uploadUploading')}...</>

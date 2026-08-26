@@ -80,7 +80,7 @@ export default function LoginPage() {
         <div className="glass-panel rounded-3xl p-8 border border-slate-800 space-y-6 shadow-2xl">
           <div className="text-center space-y-2">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/30">
-              <ShieldCheck className="w-7 h-7 text-white" />
+              <ShieldCheck className="w-7 h-7 text-on-accent" />
             </div>
             <h2 className="text-xl font-bold text-white">{t('loginBtn')}</h2>
             <p className="text-xs text-slate-400">
@@ -119,7 +119,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 flex items-center justify-center space-x-2 transition disabled:opacity-50"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-on-accent font-bold text-xs shadow-lg shadow-cyan-500/25 flex items-center justify-center space-x-2 transition disabled:opacity-50"
             >
               <span>{isLoading ? 'Authentification...' : t('loginBtn')}</span>
               {!isLoading && <ArrowRight className="w-4 h-4 rtl:rotate-180" />}

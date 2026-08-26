@@ -4,26 +4,92 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Theme palettes.
+ *
+ * Tailwind's slate scale resolves to these variables (see tailwind.config.js),
+ * so switching the class on <html> re-themes every existing `bg-slate-950`,
+ * `text-slate-400` and `border-slate-800` in the app at once.
+ *
+ * In light mode the scale is deliberately inverted — 950 becomes the lightest
+ * surface, 100 the darkest text — so components written as "dark background,
+ * light text" keep reading correctly without being rewritten. The accent
+ * colours (cyan, emerald, amber, rose) are left on Tailwind's own scale: they
+ * carry meaning in this app (conforme / warning / blocking) and must stay
+ * recognisable in both themes.
+ */
+:root,
+.dark {
+  --slate-50: 248 250 252;
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+  --slate-700: 51 65 85;
+  --slate-800: 30 41 59;
+  --slate-850: 21 32 55;
+  --slate-900: 15 23 42;
+  --slate-950: 10 15 29;
+
+  --text-strong: 255 255 255;
+
+  --app-bg: 10 15 29;
+  --panel-bg: 15 23 42 / 0.7;
+  --panel-border: 255 255 255 / 0.08;
+  --panel-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  --scrollbar-track: 10 15 29;
+  --scrollbar-thumb: 30 41 59;
+}
+
+.light {
+  /* Inverted: the low numbers are now the dark end. */
+  --slate-50: 15 23 42;
+  --slate-100: 15 23 42;
+  --slate-200: 30 41 59;
+  --slate-300: 51 65 85;
+  --slate-400: 71 85 105;
+  --slate-500: 100 116 139;
+  --slate-600: 148 163 184;
+  --slate-700: 203 213 225;
+  --slate-800: 226 232 240;
+  --slate-850: 241 245 249;
+  --slate-900: 248 250 252;
+  --slate-950: 255 255 255;
+
+  --text-strong: 15 23 42;
+
+  --app-bg: 241 245 249;
+  --panel-bg: 255 255 255 / 0.85;
+  --panel-border: 15 23 42 / 0.10;
+  --panel-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --scrollbar-track: 241 245 249;
+  --scrollbar-thumb: 203 213 225;
+}
+
 @layer base {
   body {
-    @apply bg-[#0a0f1d] text-slate-100 font-sans antialiased selection:bg-cyan-500 selection:text-white;
+    background-color: rgb(var(--app-bg));
+    @apply text-slate-100 font-sans antialiased selection:bg-cyan-500 selection:text-white;
+    transition: background-color 0.2s ease;
   }
 }
 
-html[dir="rtl"] body {
+html[dir='rtl'] body {
   font-family: 'Cairo', system-ui, sans-serif;
 }
 
-html[dir="ltr"] body {
+html[dir='ltr'] body {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
 .glass-panel {
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(var(--panel-bg));
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(var(--panel-border));
+  box-shadow: var(--panel-shadow);
 }
 
 .glass-panel-hover {
@@ -31,16 +97,15 @@ html[dir="ltr"] body {
 }
 
 .glass-panel-hover:hover {
-  background: rgba(30, 41, 59, 0.8);
   border-color: rgba(6, 182, 212, 0.35);
   box-shadow: 0 10px 30px rgba(6, 182, 212, 0.15);
   transform: translateY(-2px);
 }
 
 .glass-card {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.75) 100%);
+  background: rgba(var(--panel-bg));
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(var(--panel-border));
 }
 
 /* Custom Scrollbar */
@@ -50,14 +115,29 @@ html[dir="ltr"] body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0f1d;
+  background: rgb(var(--scrollbar-track));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: rgb(var(--scrollbar-thumb));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #06b6d4;
+}
+
+/*
+ * Text on a saturated accent background (gradient buttons, active pills, the
+ * logo mark) stays literally white in both themes. Tailwind's `white` is
+ * remapped so that headings on a slate ground flip with the theme, which is
+ * right for body copy and wrong on top of cyan or purple.
+ */
+.text-on-accent {
+  color: #ffffff;
+}
+
+/* The PDF page is always white paper, whatever the surrounding theme. */
+.pdf-page-canvas {
+  background: #ffffff;
 }

@@ -37,7 +37,7 @@ export default function HomePage() {
           <div className="flex items-center justify-center gap-4 flex-wrap pt-2">
             <Link
               href="/login"
-              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-extrabold text-sm shadow-xl shadow-cyan-500/30 flex items-center gap-2.5 transition"
+              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-on-accent font-extrabold text-sm shadow-xl shadow-cyan-500/30 flex items-center gap-2.5 transition"
             >
               <LogIn className="w-5 h-5" /> {t('ctaLogin')}
             </Link>

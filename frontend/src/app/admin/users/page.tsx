@@ -95,7 +95,7 @@ export default function AdminUsersPage() {
 
         <button
           onClick={() => setIsRegisterOpen(true)}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-500/20 flex items-center gap-2"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-on-accent font-bold text-xs shadow-lg shadow-purple-500/20 flex items-center gap-2"
         >
           <UserPlus className="w-4 h-4" /> {t('btnNewUser')}
         </button>
@@ -217,7 +217,7 @@ export default function AdminUsersPage() {
 
               <div className="pt-2 flex justify-end space-x-2 rtl:space-x-reverse">
                 <button type="button" onClick={() => setIsRegisterOpen(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300">Annuler</button>
-                <button type="submit" className="px-4 py-2 rounded-xl bg-purple-600 text-white font-bold">Créer Compte</button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-purple-600 text-on-accent font-bold">Créer Compte</button>
               </div>
             </form>
           </div>
@@ -244,7 +244,7 @@ export default function AdminUsersPage() {
 
               <div className="pt-2 flex justify-end space-x-2 rtl:space-x-reverse">
                 <button type="button" onClick={() => setIsResetOpen(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300">Annuler</button>
-                <button type="submit" className="px-4 py-2 rounded-xl bg-amber-600 text-white font-bold">Forcer la Réinitialisation</button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-amber-600 text-on-accent font-bold">Forcer la Réinitialisation</button>
               </div>
             </form>
           </div>
