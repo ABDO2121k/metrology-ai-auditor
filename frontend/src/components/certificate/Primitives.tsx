@@ -2,6 +2,8 @@
 
 import { CheckCircle2, XCircle, HelpCircle, AlertTriangle } from 'lucide-react';
 import type { MarkStatus } from '@/lib/api';
+import { useLanguage } from '@/context/LanguageContext';
+import { translateFinding, findingsBySeverity, type Finding, type Severity } from '@/lib/findings';
 
 /**
  * Shared presentation pieces for the certificate views.
@@ -172,4 +174,34 @@ export function EmptyState({ message, hint }: { message: string; hint?: string }
       {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
     </div>
   );
+}
+
+
+/**
+ * Findings rendered in the reader's language.
+ *
+ * Prefers the structured `findings` array, which carries a code and its
+ * params. Falls back to the backend's English strings when a certificate was
+ * extracted before codes existed, so old records still display.
+ */
+export function FindingList({
+  findings,
+  fallback,
+  severity,
+  title,
+}: {
+  findings?: Finding[];
+  fallback?: string[];
+  severity: Severity;
+  title: string;
+}) {
+  const { lang } = useLanguage();
+
+  const structured = findingsBySeverity(findings, severity);
+  const items = structured.length
+    ? structured.map((f) => translateFinding(f, lang))
+    : fallback || [];
+
+  const variant = severity === 'BLOCKING' ? 'blocking' : severity === 'WARNING' ? 'warning' : 'info';
+  return <IssueList items={items} variant={variant} title={title} />;
 }

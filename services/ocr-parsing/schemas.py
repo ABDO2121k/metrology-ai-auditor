@@ -44,6 +44,21 @@ class FieldProvenance(BaseModel):
     agreement: Optional[bool] = None  # vision and local OCR agreed
 
 
+class Finding(BaseModel):
+    """One audit observation, in a form the UI can translate.
+
+    The platform speaks French, English and Arabic, but the audit runs in
+    Python and used to emit English prose, so a French operator read French
+    chrome wrapped around English findings. Emitting a stable `code` plus its
+    `params` lets each language render its own sentence, while `message`
+    stays as an English fallback for any code the UI does not yet know.
+    """
+    code: str
+    severity: str  # BLOCKING | WARNING | INFO
+    params: Dict[str, Any] = {}
+    message: str
+
+
 class AIValidationResult(BaseModel):
     confidence_score: float  # 0.0 to 1.0
     data_quality_score: float  # 0.0 to 1.0
@@ -52,6 +67,8 @@ class AIValidationResult(BaseModel):
     critical_issues: List[str] = []
     warnings: List[str] = []
     suggestions: List[str] = []
+    # Structured, translatable form of the three lists above.
+    findings: List[Finding] = []
     validation_passed: bool
     validation_timestamp: str
 

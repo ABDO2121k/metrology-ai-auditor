@@ -9,9 +9,9 @@ figures say otherwise is caught.
 import datetime
 import os
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from schemas import MeasurementRow
+from schemas import Finding, MeasurementRow
 
 # Environmental envelope from PR.ECE V9 / NM 2018.
 TEMP_NOMINAL = float(os.getenv("AUDIT_TEMP_NOMINAL", "23.0"))
@@ -43,17 +43,28 @@ class AuditOutcome:
     standard_valid: bool = True
     conformity_status: str = "CONFORME"
 
-    def block(self, message: str) -> None:
+    findings: List[Finding] = field(default_factory=list)
+
+    def _record(self, code: str, severity: str, message: str, params: Dict[str, Any]) -> None:
+        if not any(f.code == code and f.message == message for f in self.findings):
+            self.findings.append(
+                Finding(code=code, severity=severity, params=params, message=message)
+            )
+
+    def block(self, message: str, code: str = "OTHER", **params: Any) -> None:
         if message not in self.blocking_anomalies:
             self.blocking_anomalies.append(message)
+        self._record(code, "BLOCKING", message, params)
 
-    def warn(self, message: str) -> None:
+    def warn(self, message: str, code: str = "OTHER", **params: Any) -> None:
         if message not in self.warnings:
             self.warnings.append(message)
+        self._record(code, "WARNING", message, params)
 
-    def suggest(self, message: str) -> None:
+    def suggest(self, message: str, code: str = "OTHER", **params: Any) -> None:
         if message not in self.suggestions:
             self.suggestions.append(message)
+        self._record(code, "INFO", message, params)
 
 
 def _as_date(value: Optional[str]) -> Optional[datetime.date]:
@@ -99,14 +110,14 @@ def audit_measurements(rows: Sequence[MeasurementRow]) -> Tuple[List[Measurement
             outcome.undecided_points += 1
             outcome.warn(
                 f"Point {row.point_index}: no EMT printed on the certificate, "
-                "so conformity could not be decided for this point"
+                "so conformity could not be decided for this point", code="POINT_NO_EMT", point=row.point_index
             )
 
         if row.conformity_decided and not row.is_conforme:
             outcome.non_conforme_points += 1
             outcome.block(
                 f"Point {row.point_index} ({row.nominal_value} {row.unit}): "
-                f"|Correction| + U = {guard_band} exceeds EMT {row.emt_limit}"
+                f"|Correction| + U = {guard_band} exceeds EMT {row.emt_limit}", code="POINT_EXCEEDS_EMT", point=row.point_index, nominal=row.nominal_value, unit=row.unit, guard_band=guard_band, emt=row.emt_limit
             )
 
         # Compare the printed error against the recomputed one.
@@ -116,7 +127,7 @@ def audit_measurements(rows: Sequence[MeasurementRow]) -> Tuple[List[Measurement
                 outcome.math_errors_detected += 1
                 outcome.warn(
                     f"Point {row.point_index}: certificate states error "
-                    f"{row.recorded_error}, recomputed {error}"
+                    f"{row.recorded_error}, recomputed {error}", code="POINT_MATH_MISMATCH", point=row.point_index, stated=row.recorded_error, recomputed=error
                 )
             else:
                 row.math_check_pass = True
@@ -132,7 +143,7 @@ def audit_measurements(rows: Sequence[MeasurementRow]) -> Tuple[List[Measurement
                     outcome.hysteresis_failures += 1
                     outcome.warn(
                         f"Point {row.point_index}: hysteresis {delta} exceeds "
-                        f"{HYSTERESIS_EMT_FRACTION:.0%} of EMT ({threshold})"
+                        f"{HYSTERESIS_EMT_FRACTION:.0%} of EMT ({threshold})", code="POINT_HYSTERESIS", point=row.point_index, delta=delta, threshold=threshold
                     )
 
         audited.append(row)
@@ -148,7 +159,7 @@ def audit_measurements(rows: Sequence[MeasurementRow]) -> Tuple[List[Measurement
         if audited:
             outcome.warn(
                 f"No EMT was printed for any of the {len(audited)} measurement "
-                "point(s), so no conformity verdict could be reached"
+                "point(s), so no conformity verdict could be reached", code="NO_EMT_ANYWHERE", total=len(audited)
             )
     else:
         outcome.conformity_status = "CONFORME"
@@ -156,7 +167,7 @@ def audit_measurements(rows: Sequence[MeasurementRow]) -> Tuple[List[Measurement
             # A partial verdict must say what it covers.
             outcome.warn(
                 f"Conformity was decided on {len(decided)} of {len(audited)} "
-                "point(s); the rest carried no EMT"
+                "point(s); the rest carried no EMT", code="PARTIAL_VERDICT", decided=len(decided), total=len(audited)
             )
 
     return audited, outcome
@@ -196,11 +207,11 @@ def audit_chronology(
 
     outcome.chronology_valid = not outcome.chronology_issues
     for issue_text in outcome.chronology_issues:
-        outcome.block(f"Chronology error: {issue_text}")
+        outcome.block(f"Chronology error: {issue_text}", code="CHRONOLOGY", detail=issue_text)
 
     if next_calibration and next_calibration < datetime.date.today():
         outcome.warn(
-            f"Certificate is past its next calibration date ({next_calibration_date})"
+            f"Certificate is past its next calibration date ({next_calibration_date})", code="PAST_NEXT_CALIBRATION", date=next_calibration_date
         )
 
 
@@ -215,11 +226,11 @@ def audit_reference_standard(
     expiry = _as_date(standard_expiry)
 
     if not standard_code and not standard_expiry:
-        outcome.warn("No reference standard traceability found on the certificate")
+        outcome.warn("No reference standard traceability found on the certificate", code="NO_TRACEABILITY")
         return True
     if calibration is None or expiry is None:
         outcome.warn(
-            "Reference standard validity could not be verified (missing calibration date or standard expiry)"
+            "Reference standard validity could not be verified (missing calibration date or standard expiry)", code="STANDARD_UNVERIFIABLE"
         )
         return True
 
@@ -227,7 +238,7 @@ def audit_reference_standard(
         outcome.standard_valid = False
         outcome.block(
             f"Reference standard {standard_code or ''} expired on {standard_expiry}, "
-            f"but was used for calibration on {calibration_date}".strip()
+            f"but was used for calibration on {calibration_date}".strip(), code="STANDARD_EXPIRED", standard=standard_code, expiry=standard_expiry, calibration=calibration_date
         )
         return False
     return True
@@ -243,17 +254,17 @@ def audit_conditions(
             outcome.conditions_valid = False
             outcome.warn(
                 f"Ambient temperature {temperature} °C is outside "
-                f"{TEMP_NOMINAL} ± {TEMP_TOLERANCE} °C"
+                f"{TEMP_NOMINAL} ± {TEMP_TOLERANCE} °C", code="TEMPERATURE_OUT_OF_RANGE", value=temperature, nominal=TEMP_NOMINAL, tolerance=TEMP_TOLERANCE
             )
     else:
-        outcome.suggest("Ambient temperature not found - verify the conditions block")
+        outcome.suggest("Ambient temperature not found - verify the conditions block", code="TEMPERATURE_MISSING")
 
     if humidity is not None:
         if humidity > HUMIDITY_MAX:
             outcome.conditions_valid = False
-            outcome.warn(f"Relative humidity {humidity} %HR exceeds {HUMIDITY_MAX} %HR")
+            outcome.warn(f"Relative humidity {humidity} %HR exceeds {HUMIDITY_MAX} %HR", code="HUMIDITY_OUT_OF_RANGE", value=humidity, maximum=HUMIDITY_MAX)
     else:
-        outcome.suggest("Ambient humidity not found - verify the conditions block")
+        outcome.suggest("Ambient humidity not found - verify the conditions block", code="HUMIDITY_MISSING")
 
 
 def audit_pages(
@@ -270,7 +281,7 @@ def audit_pages(
     confidently-read mismatch blocks validation.
     """
     if announced is None or announced <= 0:
-        outcome.suggest("Announced page count not found in the title block")
+        outcome.suggest("Announced page count not found in the title block", code="PAGE_COUNT_MISSING")
         outcome.page_integrity_pass = True
         return True
 
@@ -281,10 +292,10 @@ def audit_pages(
         )
         if announced_is_reliable:
             outcome.page_integrity_pass = False
-            outcome.block(message)
+            outcome.block(message, code="PAGE_COUNT_MISMATCH", announced=announced, extracted=extracted)
         else:
             outcome.page_integrity_pass = False
-            outcome.warn(f"{message} (page marker read by OCR - verify manually)")
+            outcome.warn(f"{message} (page marker read by OCR - verify manually)", code="PAGE_COUNT_MISMATCH_OCR", announced=announced, extracted=extracted)
         return False
     return True
 
@@ -298,17 +309,17 @@ def audit_visual(outcome: AuditOutcome, stamp_status: str, signature_status: str
     raises a warning that routes the certificate to a human instead.
     """
     if stamp_status == "ABSENT":
-        outcome.block("Validation cachet / laboratory seal not present on the document")
+        outcome.block("Validation cachet / laboratory seal not present on the document", code="CACHET_ABSENT")
     elif stamp_status != "PRESENT":
         outcome.warn(
             "Validation cachet could not be verified automatically - "
-            "confirm it visually before validating"
+            "confirm it visually before validating", code="CACHET_UNVERIFIABLE"
         )
 
     if signature_status == "ABSENT":
-        outcome.block("Validation signature not present on the document")
+        outcome.block("Validation signature not present on the document", code="SIGNATURE_ABSENT")
     elif signature_status != "PRESENT":
         outcome.warn(
             "Signature could not be verified automatically - "
-            "confirm it visually before validating"
+            "confirm it visually before validating", code="SIGNATURE_UNVERIFIABLE"
         )

@@ -208,6 +208,19 @@ export interface VisualValidation {
   approver_name: string | null;
 }
 
+export interface AIValidation {
+  confidence_score: number;
+  data_quality_score: number;
+  measurement_validity_score: number;
+  extraction_quality: string;
+  critical_issues: string[];
+  warnings: string[];
+  suggestions: string[];
+  /** Structured, translatable form of the three lists above. */
+  findings: import('./findings').Finding[];
+  validation_passed: boolean;
+}
+
 export interface CertificateOCR {
   certificate_id: string;
   status: string;

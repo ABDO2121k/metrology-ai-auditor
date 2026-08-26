@@ -628,7 +628,7 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
     if not serial_number:
         missing_critical.append("Instrument serial number missing or illegible")
     for message in missing_critical:
-        outcome.block(message)
+        outcome.block(message, code="MISSING_CRITICAL_FIELD", field=message)
 
     # A certificate whose final page announces a continuation is missing a
     # sheet. That has to be reported as a document problem, not as a failure to
@@ -641,33 +641,39 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
         outcome.block(
             f"Document is incomplete: the last page ({actual_pages}) announces "
             f"a continuation ({continuation_marker.title()}), so the certificate "
-            "runs onto a sheet that is not part of this file"
+            "runs onto a sheet that is not part of this file",
+            code="DOCUMENT_TRUNCATED", last_page=actual_pages, marker=continuation_marker.title(),
         )
 
     if not measurements:
         if document_is_truncated:
             outcome.block(
                 "No measurement points could be extracted because the page "
-                "carrying the measurement table is missing from the document"
+                "carrying the measurement table is missing from the document",
+                code="NO_POINTS_TRUNCATED",
             )
             outcome.suggest(
-                "Re-scan the certificate including every page, then re-upload it"
+                "Re-scan the certificate including every page, then re-upload it",
+                code="SUGGEST_RESCAN",
             )
         else:
             detail = f" ({table_decline_reason})" if table_decline_reason else ""
             outcome.block(
-                f"No measurement points could be extracted from the certificate{detail}"
+                f"No measurement points could be extracted from the certificate{detail}",
+                code="NO_POINTS", reason=table_decline_reason or "",
             )
             if table_decline_reason and not vision.is_configured():
                 outcome.suggest(
                     "Enable the vision layer (OPENAI_API_KEY) to read measurement "
-                    "tables from scanned certificates, or capture the points manually"
+                    "tables from scanned certificates, or capture the points manually",
+                    code="SUGGEST_ENABLE_VISION",
                 )
     elif table_decline_reason:
         # Some sections read cleanly and others did not. The certificate is
         # therefore only partially audited, which the reviewer must be told.
         outcome.warn(
-            f"Measurement table read only in part - {table_decline_reason}"
+            f"Measurement table read only in part - {table_decline_reason}",
+            code="TABLE_PARTIAL", reason=table_decline_reason,
         )
 
     # A locally-reconstructed table has no column headers to bind meaning to:
@@ -685,22 +691,29 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
         outcome.warn(
             f"{len(measurements)} measurement point(s) were reconstructed from "
             "raw OCR without column headers; the reference/uncertainty/EMT "
-            "mapping is inferred and conformity was not decided"
+            "mapping is inferred and conformity was not decided",
+            code="COLUMNS_INFERRED", count=len(measurements),
         )
         for row in measurements:
             row.is_conforme = True
 
     for message in merger.disagreements:
-        outcome.warn(f"Reading disagreement - {message}")
+        outcome.warn(f"Reading disagreement - {message}", code="READING_DISAGREEMENT", detail=message)
 
     if vision_result.get("error") and not vision_data:
-        outcome.suggest(f"Vision layer unavailable: {vision_result['error']}")
+        outcome.suggest(
+            f"Vision layer unavailable: {vision_result['error']}",
+            code="VISION_UNAVAILABLE", detail=vision_result["error"],
+        )
     if ocr_error:
-        outcome.suggest(f"Local OCR degraded: {ocr_error}")
+        outcome.suggest(f"Local OCR degraded: {ocr_error}", code="LOCAL_OCR_DEGRADED", detail=ocr_error)
 
     unreadable = (vision_data or {}).get("unreadable_fields") or []
     for name in unreadable:
-        outcome.warn(f"Field reported unreadable by vision pass: {name}")
+        outcome.warn(
+            f"Field reported unreadable by vision pass: {name}",
+            code="FIELD_UNREADABLE", field=name,
+        )
 
     ocr_confidence = local_ocr.mean_confidence(pages)
     confidence, data_quality, quality = score_extraction(
@@ -844,6 +857,7 @@ def extract_pdf_data(pdf_path: str, certificate_id: str) -> ExtractedCertificate
             critical_issues=outcome.blocking_anomalies,
             warnings=outcome.warnings,
             suggestions=outcome.suggestions,
+            findings=outcome.findings,
             validation_passed=validation_passed,
             validation_timestamp=datetime.now(timezone.utc).isoformat(),
         ),

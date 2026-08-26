@@ -4,7 +4,8 @@ import {
   Building2, CalendarClock, Thermometer, Landmark, Stamp, ScanSearch, Info,
 } from 'lucide-react';
 import { Certificate, CertificateOCR } from '@/lib/api';
-import { Field, Section, MarkBadge, IssueList, EmptyState } from './Primitives';
+import { Field, Section, MarkBadge, IssueList, EmptyState, FindingList } from './Primitives';
+import { useLanguage } from '@/context/LanguageContext';
 
 /**
  * The evidence behind the verdict: identity, dates, conditions, traceability,
@@ -27,6 +28,7 @@ export default function DetailReport({
   const doc = payload?.document_info;
   const visual = payload?.visual_validation;
   const standards = payload?.reference_standards_audit ?? [];
+  const { t } = useLanguage();
 
   return (
     <div className="space-y-6">
@@ -175,9 +177,9 @@ export default function DetailReport({
 
       {validation && (
         <Section title="Toutes les observations" icon={<Info className="w-5 h-5 text-slate-400" />}>
-          <IssueList items={validation.critical_issues} variant="blocking" title="Anomalies bloquantes" />
-          <IssueList items={validation.warnings} variant="warning" title="Avertissements" />
-          <IssueList items={validation.suggestions} variant="info" title="Suggestions" />
+          <FindingList findings={validation.findings} fallback={validation.critical_issues} severity="BLOCKING" title={t('findingsBlocking')} />
+          <FindingList findings={validation.findings} fallback={validation.warnings} severity="WARNING" title={t('findingsWarnings')} />
+          <FindingList findings={validation.findings} fallback={validation.suggestions} severity="INFO" title={t('findingsSuggestions')} />
           {!validation.critical_issues?.length &&
             !validation.warnings?.length &&
             !validation.suggestions?.length && (

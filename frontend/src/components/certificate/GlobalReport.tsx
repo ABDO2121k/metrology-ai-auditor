@@ -4,7 +4,8 @@ import {
   Gauge, ShieldCheck, Stamp, PenLine, FileCheck2, Layers, AlertTriangle,
 } from 'lucide-react';
 import { Certificate, CertificateOCR } from '@/lib/api';
-import { Field, Section, MarkBadge, VerdictBadge, IssueList } from './Primitives';
+import { Field, Section, MarkBadge, VerdictBadge, FindingList } from './Primitives';
+import { useLanguage } from '@/context/LanguageContext';
 
 /**
  * The one-screen answer: may this certificate be validated, and if not, why.
@@ -26,6 +27,7 @@ export default function GlobalReport({
   const visual = payload?.visual_validation;
   const audit = payload?.metrological_audit;
   const decision = payload?.ai_decision;
+  const { t } = useLanguage();
 
   const blocking: string[] = validation?.critical_issues ?? [];
   const warnings: string[] = validation?.warnings ?? [];
@@ -150,8 +152,18 @@ export default function GlobalReport({
 
       {(blocking.length > 0 || warnings.length > 0) && (
         <Section title="Anomalies" icon={<Layers className="w-5 h-5 text-rose-400" />}>
-          <IssueList items={blocking} variant="blocking" title="Anomalies bloquantes" />
-          <IssueList items={warnings} variant="warning" title="Avertissements" />
+          <FindingList
+            findings={validation?.findings}
+            fallback={blocking}
+            severity="BLOCKING"
+            title={t('findingsBlocking')}
+          />
+          <FindingList
+            findings={validation?.findings}
+            fallback={warnings}
+            severity="WARNING"
+            title={t('findingsWarnings')}
+          />
         </Section>
       )}
     </div>
