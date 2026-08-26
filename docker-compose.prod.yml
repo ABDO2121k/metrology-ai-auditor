@@ -241,12 +241,12 @@ services:
         # Same origin as the page itself: nginx serves the app and proxies
         # /api to the gateway, so the browser never needs a second port and
         # there is no cross-origin request to configure.
-        NEXT_PUBLIC_API_BASE_URL: "${PUBLIC_BASE_URL}"
+        NEXT_PUBLIC_API_BASE_URL: "${PUBLIC_BASE_URL-}"
     container_name: service_web_frontend
     restart: always
     environment:
       PORT: 3000
-      NEXT_PUBLIC_API_BASE_URL: "${PUBLIC_BASE_URL}"
+      NEXT_PUBLIC_API_BASE_URL: "${PUBLIC_BASE_URL-}"
     depends_on:
       - auth-gateway
     networks:

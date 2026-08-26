@@ -6,8 +6,26 @@
  * It now comes from the environment, defaulting to localhost for local runs.
  */
 
+const CONFIGURED_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+/**
+ * Where the gateway lives.
+ *
+ * An empty value means *same origin*: requests go to `/api/v1/...` relative to
+ * whatever host served the page. That is the right answer behind the nginx in
+ * docker-compose.prod.yml, which serves the app and proxies /api from one
+ * origin — and it means the deployment works unchanged on an IP, a domain, or
+ * an SSH tunnel to localhost. Since Next.js inlines NEXT_PUBLIC_* at build
+ * time, an absolute URL here would otherwise have to be rebuilt every time the
+ * address changed.
+ *
+ * Leaving the variable unset entirely keeps the local development default,
+ * where `next dev` serves :3000 and the gateway runs separately on :8000.
+ */
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8000';
+  CONFIGURED_BASE === undefined
+    ? 'http://localhost:8000'
+    : CONFIGURED_BASE.replace(/\/$/, '');
 
 export const TOKEN_KEY = 'jwt_token';
 export const USER_KEY = 'jwt_user';
